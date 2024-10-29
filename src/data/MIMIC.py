@@ -26,14 +26,14 @@ class MIMICDataset(Dataset):
         self.image_encoder.eval()
         self.text_encoder.eval()
 
-        # data = self.get_data()
-        # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
-        file = open('./src/data/data_p10.pickle', 'rb')
-        data = pickle.load(file)                                                              ## 36681 pairs
+        data = self.get_data()
+        file = open('./src/data/data.pickle', 'wb')
+        pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
+        # data = pickle.load(file)                                                              ## 36681 pairs
         self.train_data, self.val_data = torch.utils.data.random_split(data, [0.8, 0.2])      ## 29345 train, 7336 val
 
         self.data = self.train_data if mode == 'train' else self.val_data
-        print("Data initialized")
+        print(f"Data initialized: {len(self.data)} {mode} samples")
         
     def get_data(self):
         report_mri_pairs = []

@@ -166,3 +166,6 @@ cython_debug/
 wandb/
 *.pth
 *.pickle
+results/*.png
+src/data/Images/
+src/data/captions.txt

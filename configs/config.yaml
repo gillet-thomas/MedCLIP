@@ -2,23 +2,23 @@
 folder_path: '/mnt/data/iai/datasets/xray/mimic-cxr-2.0.0.physionet.org/files/'
 training_enabled: False
 wandb_enabled: False
+output_dir: './results'
 
 # Training
 seed: 42
-epochs: 10
+epochs: 50
 dropout: 0.1
 batch_size: 32
 eval_interval: 100
-learning_rate: 0.001
+learning_rate: 0.0001
 
 # CLIP model
-temperature: 1.0  # Used for cosine similarity
 pretrained: True  # for both image encoder and text encoder
 trainable: True   # for both image encoder and text encoder
 
+max_length: 200
 projection_dim: 256
 text_embedding: 768
-max_length: 200
 image_embedding: 2048
 model_name: 'resnet50'
 text_encoder_model: "distilbert-base-uncased"

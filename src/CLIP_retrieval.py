@@ -1,4 +1,9 @@
 import torch
+import matplotlib.pyplot as plt
+import os
+import numpy as np
+from datetime import datetime
+import cv2
 
 class CLIPRetrieval:
     def __init__(self, config, model, dataset):
@@ -7,6 +12,7 @@ class CLIPRetrieval:
         self.dataset = dataset
         self.device = config['device']
         self.model.eval()
+        self.output_dir = config['output_dir']
 
         self.build_dictionnaries()
         self.compute_baseline_statistics()
@@ -101,9 +107,132 @@ class CLIPRetrieval:
             return "Moderate match"
         else:
             return "Weak match"
+
+
+    def visualize_similarities(self, sample_size=10):
+        """
+        Create a visualization of cosine similarities between image and text embeddings,
+        handling different embedding dimensions
+        """
+        # Sample a subset of embeddings for visualization
+        indices = torch.randperm(len(self.image_embeddings))[:sample_size]
         
-    def retrieve_similar_content(self, sample, k=5):
-        image_tensor, text_tensor, sample_path, sample_label = sample
+        # Get the sampled embeddings
+        image_features = self.image_embeddings[indices]
+        text_features = self.text_embeddings[indices]
+        sampled_labels = [self.labels[i] for i in indices]
+        sampled_paths = [self.image_paths[i] for i in indices]
+        
+        # Print shape information for debugging
+        print(f"Image features shape: {image_features.shape}")
+        print(f"Text features shape: {text_features.shape}")
+        
+        # Normalize features
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        
+        # Project features to same dimension if needed
+        if image_features.shape[1] != text_features.shape[1]:
+            print("Features have different dimensions. Using projection...")
+            # Option 1: Project to smaller dimension
+            min_dim = min(image_features.shape[1], text_features.shape[1])
+            if image_features.shape[1] > min_dim:
+                projection_matrix = torch.randn(image_features.shape[1], min_dim).to(self.device)
+                projection_matrix = projection_matrix / projection_matrix.norm(dim=0, keepdim=True)
+                image_features = torch.matmul(image_features, projection_matrix)
+            if text_features.shape[1] > min_dim:
+                projection_matrix = torch.randn(text_features.shape[1], min_dim).to(self.device)
+                projection_matrix = projection_matrix / projection_matrix.norm(dim=0, keepdim=True)
+                text_features = torch.matmul(text_features, projection_matrix)
+        
+        # Calculate similarity matrix
+        similarity = torch.matmul(text_features, image_features.T).cpu().numpy()
+        
+        # Create figure
+        plt.figure(figsize=(20, 14))
+        
+        # Plot similarity matrix
+        im = plt.imshow(similarity, vmin=similarity.min(), vmax=similarity.max(), cmap='viridis')
+        plt.colorbar(im, label='Cosine Similarity')
+        
+        # Add text labels
+        for i in range(similarity.shape[0]):
+            for j in range(similarity.shape[1]):
+                plt.text(j, i, f"{similarity[i, j]:.2f}", 
+                        ha="center", va="center", 
+                        color='white' if similarity[i, j] < similarity.mean() else 'black',
+                        size=10)
+        
+        # Add thumbnail images on x-axis
+        for i, path in enumerate(sampled_paths):
+            img = self.load_and_resize_image(path, target_size=(64, 64))
+            plt.imshow(img, extent=(i - 0.5, i + 0.5, similarity.shape[0], similarity.shape[0] + 1), 
+                    aspect='auto')
+        
+        # Customize axes
+        plt.yticks(range(len(sampled_labels)), sampled_labels, fontsize=12)
+        plt.xticks([])
+        
+        # Remove spines
+        for side in ["left", "top", "right", "bottom"]:
+            plt.gca().spines[side].set_visible(False)
+        
+        # Set plot limits and title
+        plt.xlim([-0.5, sample_size - 0.5])
+        plt.ylim([sample_size + 0.5, -1])
+        plt.title("Cosine Similarity between Text and Image Features", size=20, pad=40)
+        
+        # Save plot
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filepath = os.path.join(self.output_dir, f'similarity_matrix_{timestamp}.png')
+        plt.tight_layout()
+        plt.savefig(filepath)
+        plt.close()
+
+
+    def load_and_resize_image(self, image_path, target_size=(224, 224)):
+        """Load image and resize it for visualization."""
+        img = cv2.imread(image_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(img, target_size)
+        return img
+
+    def create_retrieval_plot(self, query_image_path, similar_results, query_type, timestamp):
+        """Create and save a plot with query image and retrieved results."""
+        k = len(similar_results['indices'])
+        fig, axes = plt.subplots(2, k, figsize=(k * 4, 8))
+        fig.suptitle(f'{query_type} Retrieval Results', fontsize=16)
+        
+        # Plot query image
+        query_img = self.load_and_resize_image(query_image_path)
+        for j in range(k):
+            axes[0, j].imshow(query_img)
+            axes[0, j].axis('off')
+            if j == 0:
+                axes[0, j].set_title('Query Image', fontsize=12)
+            
+        # Plot retrieved images
+        for i, (idx, sim, norm_score) in enumerate(zip(
+            similar_results['indices'],
+            similar_results['similarities'],
+            similar_results['normalized_scores']
+        )):
+            retrieved_img = self.load_and_resize_image(similar_results['paths'][i])
+            axes[1, i].imshow(retrieved_img)
+            axes[1, i].axis('off')
+            axes[1, i].set_title(f'Score: {norm_score:.1f}%', fontsize=10)
+        
+        # Save plot
+        filename = f'retrieval_{query_type}_{timestamp}.png'
+        filepath = os.path.join(self.output_dir, filename)
+        plt.tight_layout()
+        plt.savefig(filepath)
+        plt.close()
+        
+        return filepath
+     
+    def retrieve_similar_content(self, k=5):
+        image_tensor, text_tensor, sample_path, sample_label = self.dataset[10]
         
         print("\nImage-to-Image Baseline Statistics:")
         print(f"Average similarity: {self.image_stats['mean']:.3f}")
@@ -115,6 +244,8 @@ class CLIPRetrieval:
         print(f"90th percentile: {self.text_stats['percentiles']['90']:.3f}")
         print(f"95th percentile: {self.text_stats['percentiles']['95']:.3f}\n")
         
+        self.visualize_similarities(sample_size=10)
+
         print("\n-----------IMAGE-TO-TEXT RETRIEVAL-----------")
         query_embedding = image_tensor.to(self.device)
         similar_images = self.find_similar(query_embedding, self.image_embeddings, modality='image', k=k)
@@ -131,11 +262,18 @@ class CLIPRetrieval:
         )):
             print(f"{i+1}. Image {idx} with similarity: {sim:.3f} ({norm_score:.1f}%) - {eval_result}.\n   Label: {label}")
 
+        # Create and save image-to-image plot
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        img2img_plot = self.create_retrieval_plot(sample_path, similar_images, 'Image2Image', timestamp)
+        print(f"Image-to-Image retrieval plot saved to: {img2img_plot}")
+
         print("\n-----------TEXT-TO-IMAGE RETRIEVAL-----------")
+        # text = "a group of people dancing in a party"
+        # text_tensor = self.dataset.text_encoder(text).unsqueeze(0)
         query_embedding = text_tensor.to(self.device)
         similar_texts = self.find_similar(query_embedding, self.text_embeddings, modality='text', k=k)
         
-        print(f"Original image path is '{sample_path}'")
+        print(f"Original image path is '{sample_label}'")
         print("Top similar items are:")
         for i, (idx, sim, norm_score, eval_result, path, label) in enumerate(zip(
             similar_texts['indices'], 
@@ -146,5 +284,10 @@ class CLIPRetrieval:
             similar_texts['labels']
         )):
             print(f"{i+1}. Image {idx} with similarity: {sim:.3f} ({norm_score:.1f}%) - {eval_result}.\n   Label: {label}")
+
+        # Create and save image-to-image plot
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        text2img_plot = self.create_retrieval_plot(sample_path, similar_texts, 'Text2Image', timestamp)
+        print(f"Text-to-Image retrieval plot saved to: {text2img_plot}")
 
         return { 'similar_images': similar_images, 'matching_text': similar_texts}
