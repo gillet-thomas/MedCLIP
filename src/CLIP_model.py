@@ -1,9 +1,9 @@
 import timm
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import DistilBertTokenizer, DistilBertModel, DistilBertConfig
-import numpy as np
+from transformers import DistilBertTokenizer, DistilBertModel, ResNetConfig, ResNetModel
 
 class CLIP(nn.Module):
     def __init__(self, config):
@@ -45,9 +45,9 @@ class ImageEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
 
-        self.model_name = config["model_name"]
-        self.pretrained = config["pretrained"]
         self.trainable = config["trainable"]
+        self.pretrained = config["pretrained"]
+        self.model_name = config["image_encoder"]
 
         self.model = timm.create_model(self.model_name, pretrained=True, num_classes=0)
 
@@ -62,10 +62,10 @@ class TextEncoder(nn.Module):
         super().__init__()
 
         self.device = config["device"]
-        self.model_name = config["text_encoder_model"]
-        self.pretrained = config["pretrained"]
         self.trainable = config["trainable"]
-        self.max_length = config["max_length"]
+        self.pretrained = config["pretrained"]
+        self.model_name = config["text_encoder"]
+        self.max_length = config["text_encoder_max_length"]
         self.tokenizer = DistilBertTokenizer.from_pretrained(self.model_name)
 
         # Load the model

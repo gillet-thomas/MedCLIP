@@ -212,8 +212,8 @@ class CLIPRetrieval:
         k = len(similar_results['indices'])
         
         # Create a single row plot for query and similar images with increased height
-        fig, axes = plt.subplots(1, k + 1, figsize=(4 * (k + 1), 6))  # Increased height to 5
-        fig.suptitle(f'{query_type} Retrieval Results', fontsize=16)
+        fig, axes = plt.subplots(1, k + 1, figsize=(4 * (k + 1), 7))  # Increased height to 5
+        fig.suptitle(f'{query_type} Retrieval Results', fontsize=16, y=0.95)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
         # Plot query image
@@ -221,8 +221,8 @@ class CLIPRetrieval:
         axes[0].imshow(query_img)
         axes[0].axis('off')
         axes[0].set_title('Query Image', fontsize=12)
-        wrapped_query_label = textwrap.fill(query_label, width=50)  # Adjust width as needed
-        axes[0].text(0.5, -0.15, wrapped_query_label, ha='center', va='baseline', transform=axes[0].transAxes, fontsize=10)
+        wrapped_query_label = textwrap.fill(" ".join(query_label) if isinstance(query_label, list) else query_label, width=50)
+        axes[0].text(0.5, -0.15, wrapped_query_label, ha='center', va='top', transform=axes[0].transAxes, fontsize=10)
 
         # Plot retrieved images
         for i, (idx, sim, norm_score, label) in enumerate(zip(
@@ -239,11 +239,11 @@ class CLIPRetrieval:
             axes[i + 1].set_title(f'Similarity: {norm_score:.2f}%', fontsize=14)
             
             # Wrap the label text to ensure it doesn't exceed image width
-            wrapped_label = textwrap.fill(label, width=50)  # Adjust width as needed
-            axes[i + 1].text(0.5, -0.1, wrapped_label, ha='center', va='baseline', transform=axes[i + 1].transAxes, fontsize=10)
+            wrapped_label = textwrap.fill(" ".join(label) if isinstance(label, list) else label, width=50)
+            axes[i + 1].text(0.5, -0.1, wrapped_label, ha='center', va='top', transform=axes[i + 1].transAxes, fontsize=10)
 
         # Adjust layout to give more space for titles and labels
-        plt.tight_layout(rect=[0, 0, 1, 0.9])  # Increase space for titles above and labels below
+        plt.subplots_adjust(top=0.9, bottom=0.1, left=0.05, right=0.95, wspace=0.1)
         filename = f'retrieval_{query_type}_{timestamp}.png'
         filepath = os.path.join(self.output_dir, filename)
         plt.savefig(filepath)
@@ -253,7 +253,7 @@ class CLIPRetrieval:
 
      
     def retrieve_similar_content(self, k=5):
-        image_tensor, text_tensor, sample_path, sample_label = self.dataset[4]
+        image_tensor, text_tensor, sample_path, sample_label = self.dataset[100]
         # self.save_similarity_matrix(sample_size=15)
 
         # print("\nImage-to-Image Baseline Statistics:")

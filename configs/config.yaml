@@ -16,9 +16,9 @@ learning_rate: 0.0001
 pretrained: True  # for both image encoder and text encoder
 trainable: True   # for both image encoder and text encoder
 
-max_length: 200
 projection_dim: 256
-text_embedding: 768
+image_encoder: 'resnet50'
 image_embedding: 2048
-model_name: 'resnet50'
-text_encoder_model: "distilbert-base-uncased"
+text_encoder: "distilbert-base-uncased"
+text_embedding: 768
+text_encoder_max_length: 200

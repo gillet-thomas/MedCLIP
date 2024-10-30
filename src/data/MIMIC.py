@@ -52,9 +52,9 @@ class MIMICDataset(Dataset):
             
             # Create a tuple (mri, report label) for each MRI
             for mri_path in mri_paths:
-                mri_image = self.load_dicom(mri_path)                           ## (512, 512, 3) shape, 0-255 pixel values
+                mri_image = self.load_dicom(mri_path)                           ## (224, 224, 3) shape, 0-255 pixel values
                 mri_image = torch.tensor(mri_image).to(self.device)             ## Convert to tensor and move to device
-                mri_image = mri_image.permute(2, 0, 1).float().unsqueeze(0)     ## Change to (1, 3, 512, 512) shape for encoder
+                mri_image = mri_image.permute(2, 0, 1).float().unsqueeze(0)     ## Change to (1, 3, 224, 224) shape for encoder
                 
                 with torch.no_grad():
                     encoded_image = self.image_encoder(mri_image)  ## (1, 2048) shape

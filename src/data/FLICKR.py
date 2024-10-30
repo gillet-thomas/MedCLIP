@@ -7,6 +7,7 @@ import pickle
 from tqdm import tqdm
 from torch.utils.data import Dataset
 from src.CLIP_model import ImageEncoder, TextEncoder
+from collections import defaultdict
 
 class Flickr8kDataset(Dataset):
     def __init__(self, config, mode='train'):
@@ -23,8 +24,8 @@ class Flickr8kDataset(Dataset):
         
         # Load and split data
         # data = self.get_data()
+        file = open('./src/data/flickr_list.pickle', 'rb')
         # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
-        file = open('./src/data/flickr.pickle', 'rb')
         data = pickle.load(file)
         self.train_data, self.val_data = torch.utils.data.random_split(data, [0.9, 0.1])
         
@@ -36,13 +37,16 @@ class Flickr8kDataset(Dataset):
         captions_path = os.path.join('src', 'data', 'captions.txt')
         df = pd.read_csv(captions_path, header=None, names=['image', 'caption'])
         
-        image_caption_pairs = []
-        images_path = os.path.join('src', 'data', 'Images')
+        # Group captions by image
+        image_captions = defaultdict(list)
+        for _, row in df.iterrows():
+            image_captions[row['image']].append(row['caption'].strip())
         
-        # Process each image-caption pair
-        for idx, row in tqdm(df.iterrows()):
-            image_path = os.path.join(images_path, row['image'])
-            caption = row['caption']
+        # Encode images and captions
+        encoded_data_pairs = []
+        images_path = os.path.join('src', 'data', 'Images')
+        for image_name, captions in tqdm(image_captions.items()):
+            image_path = os.path.join(images_path, image_name)
             
             if not os.path.exists(image_path):
                 print(f"Image not found: {image_path}")
@@ -52,20 +56,30 @@ class Flickr8kDataset(Dataset):
             with torch.no_grad():
                 image = self.load_image(image_path)
                 encoded_image = self.image_encoder(image)
-                encoded_caption = self.text_encoder(caption)
+                
+                # Encode all captions for this image
+                clean_captions = []
+                encoded_captions = []
+                for caption in captions:
+                    encoded_caption = self.text_encoder(caption)
+                    encoded_captions.append(encoded_caption.squeeze(0))
+                    clean_captions.append(caption)
+                
+                encoded_captions = torch.stack(encoded_captions)
             
             # Store tensors on CPU to save GPU memory
-            image_caption_pairs.append((encoded_image.squeeze(0).cpu(), encoded_caption.squeeze(0).cpu(), image_path, caption))
+            # Data is [2048], [768], image_path, [caption1, caption2, ...]
+            encoded_data_pairs.append((encoded_image.squeeze(0).cpu(), encoded_caption.squeeze(0).cpu(), image_path, clean_captions))
             
-        return image_caption_pairs
+        return encoded_data_pairs
     
     def load_image(self, path):
         image = cv2.imread(path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image = cv2.resize(image, (512, 512), interpolation=cv2.INTER_AREA)
+        image = cv2.resize(image, (224, 224), interpolation=cv2.INTER_AREA)
         image = image.astype('float32') / 255.0
         image = torch.tensor(image).to(self.device)
-        image = image.permute(2, 0, 1).float().unsqueeze(0)  # Shape: (1, 3, 512, 512) for ResNet encoder
+        image = image.permute(2, 0, 1).float().unsqueeze(0)  # Shape: (1, 3, 224, 224) for ResNet encoder
         
         return image
     
