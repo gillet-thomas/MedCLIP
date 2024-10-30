@@ -49,7 +49,7 @@ class ImageEncoder(nn.Module):
         self.pretrained = config["pretrained"]
         self.trainable = config["trainable"]
 
-        self.model = timm.create_model(self.model_name, pretrained=True)
+        self.model = timm.create_model(self.model_name, pretrained=True, num_classes=0)
 
     def forward(self, x):
         # # Get embedding and normalize
