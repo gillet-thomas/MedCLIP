@@ -1,24 +1,23 @@
 # Global
-folder_path: '/mnt/data/iai/datasets/xray/mimic-cxr-2.0.0.physionet.org/files/'
+data_dir: '/mnt/data/iai/datasets/xray/mimic-cxr-2.0.0.physionet.org/files/'
+output_dir: './results'
 training_enabled: False
 wandb_enabled: False
-output_dir: './results'
 
 # Training
 seed: 42
-epochs: 50
 dropout: 0.1
-batch_size: 32
-eval_interval: 100
 learning_rate: 0.0001
 
-# CLIP model
-pretrained: True  # for both image encoder and text encoder
-trainable: True   # for both image encoder and text encoder
+epochs: 1000
+batch_size: 64
+weight_decay: 0.01          ## Default value of AdamW
+iterations_per_epoch: 500
+val_interval: 20           ## Validation every 100 iterations
 
-projection_dim: 256
+# CLIP model
+projection_dim: 1024
 image_encoder: 'resnet50'
 image_embedding: 2048
 text_encoder: "distilbert-base-uncased"
 text_embedding: 768
-text_encoder_max_length: 200

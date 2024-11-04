@@ -12,6 +12,7 @@ if __name__ == "__main__":
     device = 'cuda:2' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available else 'cpu'
     config = yaml.safe_load(open("./configs/config.yaml"))
     config["device"] = device
+    print(f"Device: {device}")
 
     torch.manual_seed(config["seed"])
 
@@ -22,9 +23,10 @@ if __name__ == "__main__":
     wandb.init(project="CLIP_MIMIC_CXR", mode=wandb_mode, config=config, name=name)
 
     if config['training_enabled']:
-        dataset = Flickr8kDataset(config)
+        dataset_train = Flickr8kDataset(config, mode="train")
+        dataset_val = Flickr8kDataset(config, mode="val")
         model = CLIP(config)
-        trainer = Trainer(config, model, dataset)
+        trainer = Trainer(config, model, dataset_train, dataset_val)
         trainer.run()
     else:
         print("Training is disabled. Inference mode enabled.")

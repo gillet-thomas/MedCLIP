@@ -11,9 +11,11 @@ from collections import defaultdict
 
 class Flickr8kDataset(Dataset):
     def __init__(self, config, mode='train'):
+        self.mode = mode
         self.config = config
         self.device = config['device']
         self.batch_size = config['batch_size']
+        self.iterations_per_epoch = config['iterations_per_epoch']
         
         # Initialize encoders
         self.image_encoder = ImageEncoder(config).to(self.device)
@@ -41,8 +43,7 @@ class Flickr8kDataset(Dataset):
         image_captions = defaultdict(list)
         for _, row in df.iterrows():
             image_captions[row['image']].append(row['caption'].strip())
-        
-        # Encode images and captions
+
         encoded_data_pairs = []
         images_path = os.path.join('src', 'data', 'Images')
         for image_name, captions in tqdm(image_captions.items()):
@@ -68,7 +69,7 @@ class Flickr8kDataset(Dataset):
                 encoded_captions = torch.stack(encoded_captions)
             
             # Store tensors on CPU to save GPU memory
-            # Data is [2048], [768], image_path, [caption1, caption2, ...]
+            # Data is [2048], [768], image_path, [caption1, caption2, ...] of type Tensor, Tensor, str, list
             encoded_data_pairs.append((encoded_image.squeeze(0).cpu(), encoded_caption.squeeze(0).cpu(), image_path, clean_captions))
             
         return encoded_data_pairs
@@ -84,7 +85,9 @@ class Flickr8kDataset(Dataset):
         return image
     
     def __getitem__(self, idx):
+        idx = idx % len(self.data)
         return self.data[idx][0], self.data[idx][1], self.data[idx][2], self.data[idx][3]
     
     def __len__(self):
-        return len(self.data) // self.batch_size
+        # return self.batch_size * self.iterations_per_epoch if self.mode else len(self.data)
+        return len(self.data)

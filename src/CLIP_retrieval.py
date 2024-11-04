@@ -1,61 +1,66 @@
-import torch
-import matplotlib.pyplot as plt
 import os
-import numpy as np
-from datetime import datetime
 import cv2
-import torch.nn.functional as F
 import textwrap
+import numpy as np
+from tqdm import tqdm
+from datetime import datetime
+
+import torch
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
 
 class CLIPRetrieval:
     def __init__(self, config, model, dataset):
         self.config = config
-        self.model = model.to(config['device'])
-        self.dataset = dataset
         self.device = config['device']
-        self.model.eval()
         self.output_dir = config['output_dir']
+        
+        self.model = model.to(self.device)
+        self.model.eval()
+        self.dataset = dataset                                                 ## Types Tensor, Tensor, string, list
+        self.dataloader = DataLoader(dataset, batch_size=1, shuffle=False)     ## Types Tensor, Tensor, tuple, list
 
         self.build_dictionnaries()              ## projected_image_embeddings, projected_text_embeddings, labels, image_paths
         self.compute_baseline_statistics()
-        
+
     def build_dictionnaries(self):
         image_embeddings, text_embeddings, labels, image_paths = [], [], [], []
         
         with torch.no_grad():
-            for image, text, path, label in self.dataset:
+            for idx, (image, text, path, label) in enumerate(self.dataloader):
                 # Project image embeddings to shared space
-                image_embedding = image.unsqueeze(0).to(self.device)  # Add batch dimension
-                image_projected = self.model.image_projection(image_embedding).squeeze(0)
-                
+                image_embedding = image.to(self.device)  # Add batch dimension
+                image_embedding = self.model.image_projection(image_embedding).squeeze(0)
+                image_embedding = F.normalize(image_embedding, dim=-1)
+            
                 # Project text embeddings to shared space
-                text_embedding = text.unsqueeze(0).to(self.device)  # Add batch dimension
-                text_projected = self.model.text_projection(text_embedding).squeeze(0)
+                text_embedding = text.to(self.device)  # Add batch dimension
+                text_embedding = self.model.text_projection(text_embedding).squeeze(0)
+                text_embedding = F.normalize(text_embedding, dim=-1)
                 
-                image_embeddings.append(image_projected)
-                text_embeddings.append(text_projected)
-                image_paths.append(path)
-                labels.append(label)
-        
+                image_embeddings.append(image_embedding)    ## image_embedding is Tensor
+                text_embeddings.append(text_embedding)      ## text_embedding is Tensor
+                image_paths.append(path[0])                 ## path is tuple so take string element
+                labels.append(label)                        ## label is list
+
         self.image_embeddings = torch.stack(image_embeddings).to(self.device)
         self.text_embeddings = torch.stack(text_embeddings).to(self.device)
         self.labels = labels
         self.image_paths = image_paths
     
     def compute_baseline_statistics(self):
-        print("Computing baseline similarity statistics...")
-        
         # Sample size for efficiency
-        n_samples = min(1000, len(self.text_embeddings))            ## Len of text_embeddings and image_embeddings = 4045
+        n_samples = min(100, len(self.text_embeddings))            ## Len of text_embeddings and image_embeddings = 4045
         
         # Compute text-to-text similarities
         text_indices = torch.randperm(len(self.text_embeddings))[:n_samples]
-        text_samples = self.text_embeddings[text_indices]
+        text_samples = self.text_embeddings[text_indices]       ## (n_samples, 1024)
         text_similarities = torch.matmul(text_samples, text_samples.T)
         
         # Compute image-to-image similarities
         image_indices = torch.randperm(len(self.image_embeddings))[:n_samples]
-        image_samples = self.image_embeddings[image_indices]
+        image_samples = self.image_embeddings[image_indices]    ## (n_samples, 1024)
         image_similarities = torch.matmul(image_samples, image_samples.T)
         
         # Store separate statistics for text and image
@@ -201,7 +206,9 @@ class CLIPRetrieval:
 
 
     def load_and_resize_image(self, image_path, target_size=(224, 224)):
-        """Load image and resize it for visualization."""
+        if not os.path.exists(image_path):
+            print(f"Image not found: {image_path}")
+            return None
         img = cv2.imread(image_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = cv2.resize(img, target_size)
@@ -221,7 +228,7 @@ class CLIPRetrieval:
         axes[0].imshow(query_img)
         axes[0].axis('off')
         axes[0].set_title('Query Image', fontsize=12)
-        wrapped_query_label = textwrap.fill(" ".join(query_label) if isinstance(query_label, list) else query_label, width=50)
+        wrapped_query_label = textwrap.fill(" ".join(query_label), width=50)        ## query_label is list of strings
         axes[0].text(0.5, -0.15, wrapped_query_label, ha='center', va='top', transform=axes[0].transAxes, fontsize=10)
 
         # Plot retrieved images
@@ -239,7 +246,8 @@ class CLIPRetrieval:
             axes[i + 1].set_title(f'Similarity: {norm_score:.2f}%', fontsize=14)
             
             # Wrap the label text to ensure it doesn't exceed image width
-            wrapped_label = textwrap.fill(" ".join(label) if isinstance(label, list) else label, width=50)
+            label_string = ' '.join(l[0] for l in label)    ## label is list of tuples (string,)
+            wrapped_label = textwrap.fill(label_string, width=50)
             axes[i + 1].text(0.5, -0.1, wrapped_label, ha='center', va='top', transform=axes[i + 1].transAxes, fontsize=10)
 
         # Adjust layout to give more space for titles and labels
@@ -254,25 +262,26 @@ class CLIPRetrieval:
      
     def retrieve_similar_content(self, k=5):
         image_tensor, text_tensor, sample_path, sample_label = self.dataset[100]
-        # self.save_similarity_matrix(sample_size=15)
+        self.save_similarity_matrix(sample_size=15)
 
-        # print("\nImage-to-Image Baseline Statistics:")
-        # print(f"Average similarity: {self.image_stats['mean']:.3f}")
-        # print(f"90th percentile: {self.image_stats['percentiles']['90']:.3f}")
-        # print(f"95th percentile: {self.image_stats['percentiles']['95']:.3f}")
+        print("\nImage-to-Image Baseline Statistics:")
+        print(f"Average similarity: {self.image_stats['mean']:.3f}")
+        print(f"90th percentile: {self.image_stats['percentiles']['90']:.3f}")
+        print(f"95th percentile: {self.image_stats['percentiles']['95']:.3f}")
         
-        # print("\nText-to-Text Baseline Statistics:")
-        # print(f"Average similarity: {self.text_stats['mean']:.3f}")
-        # print(f"90th percentile: {self.text_stats['percentiles']['90']:.3f}")
-        # print(f"95th percentile: {self.text_stats['percentiles']['95']:.3f}\n")
+        print("\nText-to-Text Baseline Statistics:")
+        print(f"Average similarity: {self.text_stats['mean']:.3f}")
+        print(f"90th percentile: {self.text_stats['percentiles']['90']:.3f}")
+        print(f"95th percentile: {self.text_stats['percentiles']['95']:.3f}\n")
 
         print("\n-----------IMAGE-TO-TEXT RETRIEVAL-----------")
         query_embedding = image_tensor.to(self.device)
-        query_embedding = self.model.image_projection(query_embedding).squeeze(0)
+        query_embedding = self.model.image_projection(query_embedding)      ## Shape [1024]
+        query_embedding = F.normalize(query_embedding, dim=-1)
         similar_images = self.find_similar(query_embedding, self.image_embeddings, modality='image', k=k)
         
         print(f"Original image label is '{sample_label}'")
-        print("Top similar items are:")
+        print("\nTop similar items are:")
         for i, (idx, sim, norm_score, eval_result, path, label) in enumerate(zip(
             similar_images['indices'], 
             similar_images['similarities'], 
@@ -292,11 +301,12 @@ class CLIPRetrieval:
         # text = "a group of people dancing in a party"
         # text_tensor = self.dataset.text_encoder(text).unsqueeze(0)
         query_embedding = text_tensor.to(self.device)
-        query_embedding = self.model.text_projection(query_embedding).squeeze(0)
+        query_embedding = self.model.text_projection(query_embedding)      ## Shape [1024]
+        query_embedding = F.normalize(query_embedding, dim=-1)
         similar_texts = self.find_similar(query_embedding, self.text_embeddings, modality='text', k=k)
         
         print(f"Original image label is '{sample_label}'")
-        print("Top similar items are:")
+        print("\nTop similar items are:")
         for i, (idx, sim, norm_score, eval_result, path, label) in enumerate(zip(
             similar_texts['indices'], 
             similar_texts['similarities'], 

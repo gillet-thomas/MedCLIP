@@ -3,10 +3,10 @@ import torch
 from tqdm import tqdm
 
 class Trainer():
-    def __init__(self, config, model, dataset):
+    def __init__(self, config, model, dataset_train, dataset_val):
         self.config = config
-        self.data = dataset.train_data
-        self.val_data = dataset.val_data
+        self.data = dataset_train
+        self.val_data = dataset_val
         self.device = config['device']
         self.model = model.to(self.device)
 
@@ -18,7 +18,8 @@ class Trainer():
         self.val_dataloader = torch.utils.data.DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False)
 
         print(f'CLIP model {sum(p.numel() for p in self.model.parameters())/1e6} M parameters running on {self.device}')
-        print(f"Number of batches: {len(self.dataloader)} of size {self.batch_size}")
+        print(f"Number of batches training: {len(self.dataloader)} of size {self.batch_size}")
+        print(f"Number of batches validation: {len(self.val_dataloader)} of size {self.batch_size}")
 
         for epoch in tqdm(range(self.epochs)):
             self.train(epoch)
@@ -32,8 +33,10 @@ class Trainer():
         running_loss = 0.0
 
         learning_rate = self.config['learning_rate']
-        eval_interval = self.config['eval_interval']
-        optimizer = torch.optim.AdamW(self.model.parameters(), lr=learning_rate)
+        val_interval = self.config['val_interval']
+        weight_decay = self.config['weight_decay']
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
 
         for i, (sources, targets, _, _) in enumerate(self.dataloader):
             sources, targets = sources.to(self.device), targets.to(self.device)  ## (batch_size, 2048) and (batch_size, 768)
@@ -42,12 +45,13 @@ class Trainer():
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            # scheduler.step()
 
             running_loss += loss.item()
 
-            if i != 0 and i % eval_interval == 0:
-                print(f"Epoch {epoch}, Batch {i}: train loss {running_loss/eval_interval}")
-                wandb.log({"epoch": epoch, "batch": i, "train loss": running_loss/eval_interval})
+            if i != 0 and i % val_interval == 0:
+                print(f"Epoch {epoch}, Batch {i}: train loss {running_loss/val_interval}")
+                wandb.log({"epoch": epoch, "batch": i, "train loss": running_loss/val_interval})
                 running_loss = 0.0
 
 
