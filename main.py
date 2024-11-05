@@ -9,7 +9,7 @@ from src.CLIP_retrieval import CLIPRetrieval
 from src.data.FLICKR import Flickr8kDataset
 
 if __name__ == "__main__":
-    device = 'cuda:2' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available else 'cpu'
+    device = 'cuda:1' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available else 'cpu'
     config = yaml.safe_load(open("./configs/config.yaml"))
     config["device"] = device
     print(f"Device: {device}")

@@ -13,6 +13,8 @@ class CLIP(nn.Module):
         self.text_embedding = config["text_embedding"]
         self.temperature = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
 
+        self.image_encoder = ImageEncoder(config)
+        self.text_encoder = TextEncoder(config)
         self.image_projection = ProjectionHead(config, embedding_dim=self.image_embedding)
         self.text_projection = ProjectionHead(config, embedding_dim=self.text_embedding)
 
@@ -46,21 +48,50 @@ class ImageEncoder(nn.Module):
         super().__init__()
 
         self.model_name = config["image_encoder"]
+        self.dropout = config["dropout"]
         self.model = timm.create_model(self.model_name, pretrained=True, num_classes=0)
+        num_features = self.model.num_features
+
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        self.fine_tune_layers = nn.Sequential(
+            nn.Linear(num_features, num_features // 2),
+            nn.ReLU(),
+            nn.Dropout(self.dropout),
+            nn.Linear(num_features // 2, num_features)
+        )
+
 
     def forward(self, x):
-        return self.model(x)
+        with torch.no_grad():  # Ensure base model doesn't compute gradients
+            base_features = self.model(x)
+            # fine_tuned_features = self.fine_tune_layers(base_features)
+        return base_features
     
 class TextEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
 
         self.device = config["device"]
+        self.dropout = config["dropout"]
         self.model_name = config["text_encoder"]
         self.tokenizer = DistilBertTokenizer.from_pretrained(self.model_name)
 
         # Load the model
         self.model = DistilBertModel.from_pretrained(self.model_name).to(self.device)
+        hidden_size = self.model.config.hidden_size
+
+        # Freeze all base model parameters
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        self.fine_tune_layers = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size // 2),
+            nn.ReLU(),
+            nn.Dropout(self.dropout),
+            nn.Linear(hidden_size // 2, hidden_size)
+        )
 
         # we are using the CLS token hidden representation as the sentence's embedding
         self.target_token_idx = 0 ## Index 0 is CLS token represented by value 101
@@ -72,10 +103,14 @@ class TextEncoder(nn.Module):
         input_ids = tokenized_text['input_ids'].to(self.device)
         attention_mask = tokenized_text['attention_mask'].to(self.device)
         
-        # Get the model output
-        output = self.model(input_ids=input_ids, attention_mask=attention_mask)
-        last_hidden_state = output.last_hidden_state
-        return last_hidden_state[:, self.target_token_idx, :]  ## Output is shape (batch_size, hidden_size)
+        # Use torch.no_grad() for the base model inference
+        with torch.no_grad():
+            output = self.model(input_ids=input_ids, attention_mask=attention_mask)
+            cls_embedding = output.last_hidden_state[:, self.target_token_idx, :]       ## Output is shape (batch_size, hidden_size)
+            
+        # fine_tuned_embedding = self.fine_tune_layers(cls_embedding)
+        return cls_embedding
+
     
 class ProjectionHead(nn.Module):
     def __init__(self, config, embedding_dim):

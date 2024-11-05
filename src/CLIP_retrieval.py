@@ -18,7 +18,7 @@ class CLIPRetrieval:
         
         self.model = model.to(self.device)
         self.model.eval()
-        self.dataset = dataset                                                 ## Types Tensor, Tensor, string, list
+        self.dataset = dataset                                                  ## Types Tensor, Tensor, string, list
         self.dataloader = DataLoader(dataset, batch_size=1, shuffle=False)     ## Types Tensor, Tensor, tuple, list
 
         self.build_dictionnaries()              ## projected_image_embeddings, projected_text_embeddings, labels, image_paths
@@ -51,8 +51,8 @@ class CLIPRetrieval:
     
     def compute_baseline_statistics(self):
         # Sample size for efficiency
-        n_samples = min(100, len(self.text_embeddings))            ## Len of text_embeddings and image_embeddings = 4045
-        
+        n_samples = min(1000, len(self.text_embeddings))            ## Len of text_embeddings and image_embeddings = 4045
+        print(f"Computing baseline statistics with {n_samples} samples...")
         # Compute text-to-text similarities
         text_indices = torch.randperm(len(self.text_embeddings))[:n_samples]
         text_samples = self.text_embeddings[text_indices]       ## (n_samples, 1024)
@@ -170,6 +170,8 @@ class CLIPRetrieval:
             
             # Get top k matches
             top_k_similarities, top_k_indices = torch.topk(similarities, k)
+            # top_k_indices = top_k_indices[0]              ## Needed for free text query 
+            # top_k_similarities = top_k_similarities[0]    ## Needed for free text query
             
             # Add evaluation for each similarity score
             normalized_scores = [self.normalize_similarity(sim.item(), modality) for sim in top_k_similarities]
@@ -215,7 +217,6 @@ class CLIPRetrieval:
         return img
 
     def create_retrieval_plot(self, query_image_path, query_label, similar_results, query_type):
-        """Create and save a plot with query image and retrieved results."""
         k = len(similar_results['indices'])
         
         # Create a single row plot for query and similar images with increased height
@@ -261,8 +262,8 @@ class CLIPRetrieval:
 
      
     def retrieve_similar_content(self, k=5):
-        image_tensor, text_tensor, sample_path, sample_label = self.dataset[100]
-        self.save_similarity_matrix(sample_size=15)
+        image_tensor, text_tensor, sample_path, sample_label = self.dataset[8]
+        self.save_similarity_matrix(sample_size=100)
 
         print("\nImage-to-Image Baseline Statistics:")
         print(f"Average similarity: {self.image_stats['mean']:.3f}")
@@ -298,10 +299,17 @@ class CLIPRetrieval:
 
 
         print("\n-----------TEXT-TO-IMAGE RETRIEVAL-----------")
-        # text = "a group of people dancing in a party"
-        # text_tensor = self.dataset.text_encoder(text).unsqueeze(0)
+        # sample_label = "a boy jumps into the pool"                 ## Free text query
+        # sample_label = [('A group of people are backpacking through a grassy field .',), ('A group of people walk in a line through a field next to a forest .',), ('A group of people walking through a grassy field .',), ('People on a nature walk with nets and backpacks with trees to the left of them .',), ('Several people in line walking through grass with nets in hand .',)]
+        # encoded_captions = []
+        # for caption in sample_label:
+        #     encoded_caption = self.dataset.text_encoder(caption)
+        #     encoded_captions.append(encoded_caption.squeeze(0))
+        # encoded_captions = torch.stack(encoded_captions)
+        
+        # text_tensor = self.dataset.text_encoder(sample_label).unsqueeze(0)   ## Free text query
         query_embedding = text_tensor.to(self.device)
-        query_embedding = self.model.text_projection(query_embedding)      ## Shape [1024]
+        query_embedding = self.model.text_projection(query_embedding)           ## Shape [1024]
         query_embedding = F.normalize(query_embedding, dim=-1)
         similar_texts = self.find_similar(query_embedding, self.text_embeddings, modality='text', k=k)
         
@@ -318,7 +326,6 @@ class CLIPRetrieval:
             print(f"{i+1}. Image {idx} with normalized sim {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
 
         # Create and save image-to-image plot
+        # sample_label = ' '.join(l[0] for l in sample_label)
         text2img_plot = self.create_retrieval_plot(sample_path, sample_label, similar_texts, 'Text2Image')
         print(f"Text-to-Image retrieval plot saved to: {text2img_plot}")
-
-        return { 'similar_images': similar_images, 'matching_text': similar_texts}

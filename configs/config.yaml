@@ -7,11 +7,11 @@ wandb_enabled: False
 # Training
 seed: 42
 dropout: 0.1
-learning_rate: 0.0001
+learning_rate: 0.0002
 
-epochs: 1000
+epochs: 50
 batch_size: 64
-weight_decay: 0.01          ## Default value of AdamW
+weight_decay: 0.1          ## Default value of AdamW
 iterations_per_epoch: 500
 val_interval: 20           ## Validation every 100 iterations
 
