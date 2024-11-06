@@ -1,17 +1,16 @@
 # Global
 data_dir: '/mnt/data/iai/datasets/xray/mimic-cxr-2.0.0.physionet.org/files/'
 output_dir: './results'
-training_enabled: False
-wandb_enabled: False
+training_enabled: True
+wandb_enabled: True
 
 # Training
 seed: 42
-dropout: 0.1
 learning_rate: 0.0002
 
 epochs: 50
 batch_size: 64
-weight_decay: 0.1          ## Default value of AdamW
+weight_decay: 0.1
 iterations_per_epoch: 500
 val_interval: 20           ## Validation every 100 iterations
 

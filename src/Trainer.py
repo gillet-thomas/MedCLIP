@@ -15,27 +15,13 @@ class Trainer():
         self.dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size, shuffle=True)
         self.val_dataloader = torch.utils.data.DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False)
 
-        # Get only trainable parameters (fine-tuning layers)
-        self.trainable_params = [
-            {'params': self.model.image_projection.parameters()},
-            {'params': self.model.text_projection.parameters()},
-            {'params': self.model.image_encoder.fine_tune_layers.parameters()},
-            {'params': self.model.text_encoder.fine_tune_layers.parameters()}
-        ]
-
         total_params = sum(p.numel() for p in self.model.parameters())
         trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print(f'CLIP model total parameters: {total_params/1e6:.2f}M (trainable {trainable_params/1e6:.2f}M and frozen {(total_params-trainable_params)/1e6:.2f}M)')
-        print(f"Number of batches training: {len(self.dataloader)} of size {self.batch_size}")
-        print(f"Number of batches validation: {len(self.val_dataloader)} of size {self.batch_size}")
+        print(f"Number of batches training: {len(self.dataloader)} of size {self.batch_size}")          ## 114 batches of size 64
+        print(f"Number of batches validation: {len(self.val_dataloader)} of size {self.batch_size}")    ## 13 batches of size 64
 
-        # for param in self.model.parameters():
-        #     print(f"Parameter {param.shape} requires grad: {param.requires_grad}")
-
-        for name, param in self.model.named_parameters():
-            if param.requires_grad:
-                print(f"Trainable: {name}, Shape: {param.shape}")
-
+        # for name, param in self.model.named_parameters(): print(f"Trainable: {name}, Shape: {param.shape}") if param.requires_grad else None
 
     def run(self):
         for epoch in tqdm(range(self.epochs)):
@@ -53,7 +39,7 @@ class Trainer():
         val_interval = self.config['val_interval']
         weight_decay = self.config['weight_decay']
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=1)
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=64)
 
         for i, (sources, targets, _, _) in enumerate(self.dataloader):
             sources, targets = sources.to(self.device), targets.to(self.device)  ## (batch_size, 2048) and (batch_size, 768)
