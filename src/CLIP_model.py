@@ -88,7 +88,7 @@ class ProjectionHead(nn.Module):
         
         # Embedding dim is 2048 for image and 768 for text, projection_dim is 256
         self.projection = nn.Linear(embedding_dim, config["projection_dim"])
-        init.xavier_uniform_(self.projection.weight)
+        init.xavier_normal_(self.projection.weight)
 
     def forward(self, x):
         return self.projection(x)
