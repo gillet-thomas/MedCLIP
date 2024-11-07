@@ -28,8 +28,8 @@ class Trainer():
             self.train(epoch)
             self.validate(epoch)
 
-        torch.save(self.model.state_dict(), './results/CLIP_Flickr.pth')
-        print("Model saved to ./results/CLIP_Flickr.pth")
+        torch.save(self.model.state_dict(), './results/CLIP_ImageNet.pth')
+        print("Model saved to ./results/CLIP_ImageNet.pth")
 
     def train(self, epoch):
         self.model.train()
