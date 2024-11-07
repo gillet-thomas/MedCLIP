@@ -24,6 +24,7 @@ if __name__ == "__main__":
 
     if config['training_enabled']:
         dataset_train = Flickr8kDataset(config, mode="train")
+        # item = dataset_train[0]
         dataset_val = Flickr8kDataset(config, mode="val")
         model = CLIP(config)
         trainer = Trainer(config, model, dataset_train, dataset_val)
@@ -32,6 +33,6 @@ if __name__ == "__main__":
         print("Training is disabled. Inference mode enabled.")
         dataset = Flickr8kDataset(config, mode="val")
         model = CLIP(config).to(device)
-        model.load_state_dict(torch.load('./results/CLIP_Flickr.pth', map_location=device, weights_only=True))
+        model.load_state_dict(torch.load('./results/flickr.pth', map_location=device, weights_only=True))
         retrieval = CLIPRetrieval(config, model, dataset)
         results = retrieval.retrieve_similar_content()

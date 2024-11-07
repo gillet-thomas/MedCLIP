@@ -247,8 +247,7 @@ class CLIPRetrieval:
             axes[i + 1].set_title(f'Similarity: {norm_score:.2f}%', fontsize=14)
             
             # Wrap the label text to ensure it doesn't exceed image width
-            label_string = ' '.join(l[0] for l in label)    ## label is list of tuples (string,)
-            wrapped_label = textwrap.fill(label_string, width=50)
+            wrapped_label = textwrap.fill(" ".join(label), width=50)
             axes[i + 1].text(0.5, -0.1, wrapped_label, ha='center', va='top', transform=axes[i + 1].transAxes, fontsize=10)
 
         # Adjust layout to give more space for titles and labels
@@ -262,7 +261,7 @@ class CLIPRetrieval:
 
      
     def retrieve_similar_content(self, k=5):
-        image_tensor, text_tensor, sample_path, sample_label = self.dataset[8]
+        image_tensor, text_tensor, sample_path, sample_label = self.dataset[18]
         self.save_similarity_matrix(sample_size=100)
 
         print("\nImage-to-Image Baseline Statistics:")

@@ -26,11 +26,11 @@ class Flickr8kDataset(Dataset):
         
         # Load and split data
         # data = self.get_data()
-        file = open('./src/data/flickr_list.pickle', 'rb')
-        # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
-        data = pickle.load(file)
+        with open('./src/data/FLICKR_data.pickle', 'rb') as file:
+            # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
+            data = pickle.load(file)
+            
         self.train_data, self.val_data = torch.utils.data.random_split(data, [0.9, 0.1])
-        
         self.data = self.train_data if mode == 'train' else self.val_data
         print(f"Data initialized: {len(self.data)} {mode} samples")
     
@@ -59,18 +59,12 @@ class Flickr8kDataset(Dataset):
                 encoded_image = self.image_encoder(image)
                 
                 # Encode all captions for this image
-                clean_captions = []
-                encoded_captions = []
-                for caption in captions:
-                    encoded_caption = self.text_encoder(caption)
-                    encoded_captions.append(encoded_caption.squeeze(0))
-                    clean_captions.append(caption)
-                
-                encoded_captions = torch.stack(encoded_captions)
-            
+                combined_caption = " ".join(captions)
+                encoded_captions = self.text_encoder(combined_caption)            ## Tensor shape (1, 768) -> (768)
+
             # Store tensors on CPU to save GPU memory
             # Data is [2048], [768], image_path, [caption1, caption2, ...] of type Tensor, Tensor, str, list
-            encoded_data_pairs.append((encoded_image.squeeze(0).cpu(), encoded_caption.squeeze(0).cpu(), image_path, clean_captions))
+            encoded_data_pairs.append((encoded_image.squeeze(0).cpu(), encoded_captions.squeeze(0).cpu(), image_path, combined_caption))
             
         return encoded_data_pairs
     
@@ -86,7 +80,7 @@ class Flickr8kDataset(Dataset):
     
     def __getitem__(self, idx):
         idx = idx % len(self.data)
-        return self.data[idx][0], self.data[idx][1], self.data[idx][2], self.data[idx][3]
+        return self.data[idx][0], self.data[idx][1], self.data[idx][2], self.data[idx][3]  ## Shapes (2048), (768), str, list
     
     def __len__(self):
         # return self.batch_size * self.iterations_per_epoch if self.mode else len(self.data)
