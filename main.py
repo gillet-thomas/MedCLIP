@@ -6,6 +6,7 @@ import torch
 from src.Trainer import Trainer
 from src.CLIP_model import CLIP
 from src.CLIP_retrieval import CLIPRetrieval
+from src.CLIP_retrievalIN import CLIPRetrievalIN
 from src.data.FLICKR import Flickr8kDataset
 from src.data.ImageNet import ImageNetDataset
 
@@ -23,16 +24,15 @@ if __name__ == "__main__":
     wandb.init(project="CLIP_MIMIC_CXR", mode=wandb_mode, config=config, name=name)
 
     if config['training_enabled']:
-        dataset_train = Flickr8kDataset(config, mode="train")
-        # item = dataset_train[0]
-        dataset_val = Flickr8kDataset(config, mode="val")
+        dataset_train = ImageNetDataset(config, mode="train")
+        dataset_val = ImageNetDataset(config, mode="val")
         model = CLIP(config)
         trainer = Trainer(config, model, dataset_train, dataset_val)
         trainer.run()
     else:
         print("Training is disabled. Inference mode enabled.")
-        dataset = Flickr8kDataset(config, mode="val")
+        dataset = ImageNetDataset(config, mode="val")
         model = CLIP(config).to(device)
-        model.load_state_dict(torch.load('./results/flickr.pth', map_location=device, weights_only=True))
-        retrieval = CLIPRetrieval(config, model, dataset)
+        model.load_state_dict(torch.load('./results/CLIP_ImageNet.pth', map_location=device, weights_only=True))
+        retrieval = CLIPRetrievalIN(config, model, dataset)
         results = retrieval.retrieve_similar_content()

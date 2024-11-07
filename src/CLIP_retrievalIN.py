@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 
-class CLIPRetrieval:
+class CLIPRetrievalIN:
     def __init__(self, config, model, dataset):
         self.config = config
         self.device = config['device']
@@ -23,12 +23,13 @@ class CLIPRetrieval:
 
         self.build_dictionnaries()              ## projected_image_embeddings, projected_text_embeddings, labels, image_paths
         self.compute_baseline_statistics()
+        print(f"CLIP Retrieval initialized with {len(self.text_embeddings)} samples.")
 
     def build_dictionnaries(self):
-        image_embeddings, text_embeddings, labels, image_paths = [], [], [], []
+        image_embeddings, text_embeddings, labels, images = [], [], [], []
         
         with torch.no_grad():
-            for idx, (image, text, path, label) in enumerate(self.dataloader):
+            for idx, (image, text, image_tensor, label) in enumerate(self.dataloader):
                 # Project image embeddings to shared space
                 image_embedding = image.to(self.device)  # Add batch dimension
                 image_embedding = self.model.image_projection(image_embedding).squeeze(0)
@@ -41,13 +42,17 @@ class CLIPRetrieval:
                 
                 image_embeddings.append(image_embedding)    ## image_embedding is Tensor
                 text_embeddings.append(text_embedding)      ## text_embedding is Tensor
-                image_paths.append(path[0])                 ## path is tuple so take string element
-                labels.append(label)                        ## label is list
+                images.append(image_tensor[0])              ## image_tensor is Tensor
+                labels.append(label[0])                     ## label is string
 
         self.image_embeddings = torch.stack(image_embeddings).to(self.device)
         self.text_embeddings = torch.stack(text_embeddings).to(self.device)
+        self.images = images
         self.labels = labels
-        self.image_paths = image_paths
+    
+    def load_and_resize_image(self, image, target_size=(224, 224)):
+        img = image.permute(1, 2, 0).cpu()
+        return img
     
     def compute_baseline_statistics(self):
         # Sample size for efficiency
@@ -94,8 +99,8 @@ class CLIPRetrieval:
         # Get the sampled embeddings
         image_features = self.image_embeddings[indices]         ## (batch_size, 256)
         text_features = self.text_embeddings[indices]           ## (batch_size, 256)
-        sampled_labels = [self.labels[i] for i in indices]
-        sampled_paths = [self.image_paths[i] for i in indices]
+        images = [self.images[i] for i in indices]
+        labels = [self.labels[i] for i in indices]
         
         # Normalize features
         image_features = F.normalize(image_features, dim=-1)
@@ -128,19 +133,15 @@ class CLIPRetrieval:
         # Add text labels
         for i in range(similarity.shape[0]):
             for j in range(similarity.shape[1]):
-                plt.text(j, i, f"{similarity[i, j]:.2f}", 
-                        ha="center", va="center", 
-                        color='white' if similarity[i, j] < similarity.mean() else 'black',
-                        size=10)
+                plt.text(j, i, f"{similarity[i, j]:.2f}", ha="center", va="center", color='white' if similarity[i, j] < similarity.mean() else 'black', size=10)
         
         # Add thumbnail images on x-axis
-        for i, path in enumerate(sampled_paths):
-            img = self.load_and_resize_image(path, target_size=(64, 64))
-            plt.imshow(img, extent=(i - 0.5, i + 0.5, similarity.shape[0], similarity.shape[0] + 1), 
-                    aspect='auto')
+        for i, image in enumerate(images):
+            image = self.load_and_resize_image(image)
+            plt.imshow(image, extent=(i - 0.5, i + 0.5, similarity.shape[0], similarity.shape[0] + 1), aspect='auto')
         
         # Customize axes
-        plt.yticks(range(len(sampled_labels)), sampled_labels, fontsize=12)
+        plt.yticks(range(len(labels)), labels, fontsize=12)
         plt.xticks([])
         
         # Remove spines
@@ -183,7 +184,7 @@ class CLIPRetrieval:
                 'normalized_scores': normalized_scores,
                 'evaluations': evaluations,
                 'labels': [self.labels[idx] for idx in top_k_indices],
-                'paths': [self.image_paths[idx] for idx in top_k_indices]
+                'images': [self.images[idx] for idx in top_k_indices]
             }
         
     def normalize_similarity(self, similarity, modality='text'):
@@ -207,16 +208,7 @@ class CLIPRetrieval:
             return "Weak match"
 
 
-    def load_and_resize_image(self, image_path, target_size=(224, 224)):
-        if not os.path.exists(image_path):
-            print(f"Image not found: {image_path}")
-            return None
-        img = cv2.imread(image_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = cv2.resize(img, target_size)
-        return img
-
-    def create_retrieval_plot(self, query_image_path, query_label, similar_results, query_type):
+    def create_retrieval_plot(self, query_image, query_label, similar_results, query_type):
         k = len(similar_results['indices'])
         
         # Create a single row plot for query and similar images with increased height
@@ -225,21 +217,21 @@ class CLIPRetrieval:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
         # Plot query image
-        query_img = self.load_and_resize_image(query_image_path)
+        query_img = self.load_and_resize_image(query_image)     ## Image shape is (3, 224, 224)
         axes[0].imshow(query_img)
         axes[0].axis('off')
         axes[0].set_title('Query Image', fontsize=12)
-        wrapped_query_label = textwrap.fill(" ".join(query_label), width=50)        ## query_label is list of strings
+        wrapped_query_label = textwrap.fill(query_label[0], width=50)       ## query_label is a tuple
         axes[0].text(0.5, -0.15, wrapped_query_label, ha='center', va='top', transform=axes[0].transAxes, fontsize=10)
 
         # Plot retrieved images
-        for i, (idx, sim, norm_score, label) in enumerate(zip(
+        for i, (idx, sim, norm_score, image) in enumerate(zip(
             similar_results['indices'],
             similar_results['similarities'],
             similar_results['normalized_scores'],
-            similar_results['labels']
+            similar_results['images']
         )):
-            retrieved_img = self.load_and_resize_image(similar_results['paths'][i])
+            retrieved_img = self.load_and_resize_image(image)
             axes[i + 1].imshow(retrieved_img)
             axes[i + 1].axis('off')
             
@@ -247,7 +239,7 @@ class CLIPRetrieval:
             axes[i + 1].set_title(f'Similarity: {norm_score:.2f}%', fontsize=14)
 
             # Wrap the label text to ensure it doesn't exceed image width
-            wrapped_label = textwrap.fill(" ".join(label), width=50)
+            wrapped_label = textwrap.fill(self.labels[idx][0], width=50)    ## self.labels[idx] is a tuple
             axes[i + 1].text(0.5, -0.15, wrapped_label, ha='center', va='top', transform=axes[i + 1].transAxes, fontsize=10)
 
         # Adjust layout to give more space for titles and labels
@@ -261,7 +253,7 @@ class CLIPRetrieval:
 
      
     def retrieve_similar_content(self, k=5):
-        image_tensor, text_tensor, sample_path, sample_label = self.dataset[18]
+        image_tensor, text_tensor, image, label = self.dataset[18]
         self.save_similarity_matrix(sample_size=100)
 
         print("\nImage-to-Image Baseline Statistics:")
@@ -280,20 +272,20 @@ class CLIPRetrieval:
         query_embedding = F.normalize(query_embedding, dim=-1)
         similar_images = self.find_similar(query_embedding, self.image_embeddings, modality='image', k=k)
         
-        print(f"Original image label is '{sample_label}'")
+        print(f"Original image label is '{label}'")
         print("\nTop similar items are:")
-        for i, (idx, sim, norm_score, eval_result, path, label) in enumerate(zip(
+        for i, (idx, sim, norm_score, eval_result, image, label) in enumerate(zip(
             similar_images['indices'], 
             similar_images['similarities'], 
             similar_images['normalized_scores'],
             similar_images['evaluations'],
-            similar_images['paths'], 
+            similar_images['images'], 
             similar_images['labels']
         )):
             print(f"{i+1}. Image {idx} with normalized sim {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
 
         # Create and save image-to-image plot
-        img2img_plot = self.create_retrieval_plot(sample_path, sample_label, similar_images, 'Image2Text')
+        img2img_plot = self.create_retrieval_plot(image, label, similar_images, 'Image2Text')
         print(f"Image-to-Text retrieval plot saved to: {img2img_plot}")
 
 
@@ -312,19 +304,19 @@ class CLIPRetrieval:
         query_embedding = F.normalize(query_embedding, dim=-1)
         similar_texts = self.find_similar(query_embedding, self.text_embeddings, modality='text', k=k)
         
-        print(f"Original image label is '{sample_label}'")
+        print(f"Original image label is '{label}'")
         print("\nTop similar items are:")
-        for i, (idx, sim, norm_score, eval_result, path, label) in enumerate(zip(
+        for i, (idx, sim, norm_score, eval_result, image, label) in enumerate(zip(
             similar_texts['indices'], 
             similar_texts['similarities'], 
             similar_texts['normalized_scores'],
             similar_texts['evaluations'],
-            similar_texts['paths'], 
+            similar_texts['images'], 
             similar_texts['labels']
         )):
             print(f"{i+1}. Image {idx} with normalized sim {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
 
         # Create and save image-to-image plot
         # sample_label = ' '.join(l[0] for l in sample_label)
-        text2img_plot = self.create_retrieval_plot(sample_path, sample_label, similar_texts, 'Text2Image')
+        text2img_plot = self.create_retrieval_plot(image, label, similar_texts, 'Text2Image')
         print(f"Text-to-Image retrieval plot saved to: {text2img_plot}")

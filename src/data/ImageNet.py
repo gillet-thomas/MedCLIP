@@ -7,6 +7,8 @@ from src.CLIP_model import ImageEncoder, TextEncoder
 import pickle
 import torchvision.transforms as transforms
 from tqdm import tqdm
+import json
+import random
 
 class ImageNetDataset(Dataset):
     def __init__(self, config, mode='train'):
@@ -15,11 +17,11 @@ class ImageNetDataset(Dataset):
         self.device = config['device']
         self.batch_size = config['batch_size']
         self.iterations_per_epoch = config['iterations_per_epoch']
+        self.imagenet_labels_path = "./src/data/IMAGENET_labels.json"
 
-        # Initialize image encoder
+        # Initialize encoders
         self.image_encoder = ImageEncoder(config).to(self.device)
         self.text_encoder = TextEncoder(config).to(self.device)
-
         self.image_encoder.eval()
         self.text_encoder.eval()
 
@@ -33,37 +35,69 @@ class ImageNetDataset(Dataset):
             # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
         
-        file = open('./src/data/imagenet.pickle', 'wb')
-        file_val = open('./src/data/imagenet_val.pickle', 'wb')
-        # self.train_data = pickle.load(file)            ## 1 281 167 training samples
-        # self.val_data = pickle.load(file_val)          ## 50 000 validation samples
-        self.train_data = torchvision.datasets.ImageNet(root='/mnt/data/iai/datasets/ImageNet', split='train', transform=preprocess)
-        self.val_data = torchvision.datasets.ImageNet(root='/mnt/data/iai/datasets/ImageNet', split='val', transform=preprocess)
-        pickle.dump(self.train_data, file, protocol=pickle.HIGHEST_PROTOCOL)
-        pickle.dump(self.val_data, file_val, protocol=pickle.HIGHEST_PROTOCOL)
+        # Train is 1 281 167 samples, Val is 50 000 samples. Take 10% of the data for faster training
+        self.data = torchvision.datasets.ImageNet(root='/mnt/data/iai/datasets/ImageNet', split=mode, transform=preprocess)
+        self.data = torch.utils.data.Subset(self.data, range(0, len(self.data) // 10)) 
 
+        self.load_class_description()
+        print(f"Data initialized: {len(self.data)} {mode} samples and {len(self.class_descriptions)} classes")
+    
+    def load_class_description(self):
+        with open(self.imagenet_labels_path, 'r') as f:
+            data = json.load(f)
+            self.class_descriptions = {int(key): value for key, value in data.items()}
 
-        # Initialize a layer
-        layer = torch.nn.Linear(128, 64)
-        # Apply Xavier uniform initialization
-        torch.nn.init.xavier_uniform_(layer.weight)
-        print(layer.weight)  # See the randomly assigned weights
-
-        self.data = self.train_data if mode == 'train' else self.val_data
-        print(f"Data initialized: {len(self.data)} {mode} samples")
+        # Caption templates for variety
+        self.templates = [
+            "This is a photo of {}",
+            "The image shows {}",
+            "A picture containing {}",
+            "This image features {}",
+            "A {} can be seen in this photo",
+            "The photograph displays {}",
+            "In this image, there is {}",
+            "We can see {} in this picture",
+        ]
+        
+        # Additional details templates
+        self.detail_templates = [
+            " in a natural setting",
+            " with interesting lighting",
+            " from a close-up view",
+            " from a distance",
+            " in sharp focus",
+            " in an outdoor environment",
+            " in an indoor setting",
+        ]
+        
+    def generate_captions(self, class_idx, num_captions=5):
+        base_description = self.class_descriptions[class_idx]
+        
+        captions = []
+        for _ in range(num_captions):
+            # Randomly choose between short and detailed description
+            description = random.choice(base_description)
+            template = random.choice(self.templates)
+            detail = random.choice(self.detail_templates)
+            
+            caption = template.format(description) + detail
+            captions.append(caption)
+            
+        return captions
     
     def __getitem__(self, idx):
         idx = idx % len(self.data)
-        clean_image = self.data[idx][0]
-        clean_target = self.data[idx][1]
+        image, target = self.data[idx]                                               ## self.data[idx] returns a tuple (image, target)
+        captions = self.generate_captions(target)
+        class_descriptions = self.class_descriptions[target]
 
-        encoded_image = self.image_encoder(clean_image.unsqueeze(0).to(self.device))            ## Tensor shape (1, 3, 224, 224)
-        # encoded_text = self.text_encoder(clean_text)
-        encoded_target = torch.tensor([clean_target])      ## Clean target is the class index, no need to encode it
+        encoded_image = self.image_encoder(image.unsqueeze(0).to(self.device))
+        encoded_image = encoded_image.squeeze(0)                                     ## Tensor shape (1, 2048) -> (2048)
 
-        print(f"Encoded image shape: {encoded_image.shape}, Encoded text shape: {encoded_target.shape}, type: {clean_target},")
+        combined_caption = ". ".join(captions)
+        encoded_captions = self.text_encoder(combined_caption).squeeze(0)           ## Tensor shape (1, 768) -> (768)
 
-        return encoded_image, encoded_target, clean_image, clean_target
+        return encoded_image, encoded_captions, image, class_descriptions                       ## Shapes (2048), (768), Tensor (3, 224, 224), int
     
     def __len__(self):
         # return self.batch_size * self.iterations_per_epoch if self.mode else len(self.data)
