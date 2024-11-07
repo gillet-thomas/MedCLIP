@@ -221,7 +221,7 @@ class CLIPRetrievalIN:
         axes[0].imshow(query_img)
         axes[0].axis('off')
         axes[0].set_title('Query Image', fontsize=12)
-        wrapped_query_label = textwrap.fill(query_label[0], width=50)       ## query_label is a tuple
+        wrapped_query_label = textwrap.fill(" ".join(query_label), width=50)
         axes[0].text(0.5, -0.15, wrapped_query_label, ha='center', va='top', transform=axes[0].transAxes, fontsize=10)
 
         # Plot retrieved images
@@ -239,7 +239,9 @@ class CLIPRetrievalIN:
             axes[i + 1].set_title(f'Similarity: {norm_score:.2f}%', fontsize=14)
 
             # Wrap the label text to ensure it doesn't exceed image width
-            wrapped_label = textwrap.fill(self.labels[idx][0], width=50)    ## self.labels[idx] is a tuple
+            label = int(self.labels[idx].item())
+            label = self.dataset.class_descriptions[label]
+            wrapped_label = textwrap.fill(" ".join(label), width=50)
             axes[i + 1].text(0.5, -0.15, wrapped_label, ha='center', va='top', transform=axes[i + 1].transAxes, fontsize=10)
 
         # Adjust layout to give more space for titles and labels
@@ -254,7 +256,8 @@ class CLIPRetrievalIN:
      
     def retrieve_similar_content(self, k=5):
         image_tensor, text_tensor, image, label = self.dataset[18]
-        self.save_similarity_matrix(sample_size=100)
+        label = self.dataset.class_descriptions[label]
+        # self.save_similarity_matrix(sample_size=100)
 
         print("\nImage-to-Image Baseline Statistics:")
         print(f"Average similarity: {self.image_stats['mean']:.3f}")
@@ -274,7 +277,7 @@ class CLIPRetrievalIN:
         
         print(f"Original image label is '{label}'")
         print("\nTop similar items are:")
-        for i, (idx, sim, norm_score, eval_result, image, label) in enumerate(zip(
+        for i, (idx, sim, norm_score, eval_result, image, l) in enumerate(zip(
             similar_images['indices'], 
             similar_images['similarities'], 
             similar_images['normalized_scores'],
@@ -282,7 +285,8 @@ class CLIPRetrievalIN:
             similar_images['images'], 
             similar_images['labels']
         )):
-            print(f"{i+1}. Image {idx} with normalized sim {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
+            l = int(l.item())
+            print(f"{i+1}. Image {idx} with normalized sim {norm_score:.2f}% - {eval_result}.\n   Label: {self.dataset.class_descriptions[l]}")
 
         # Create and save image-to-image plot
         img2img_plot = self.create_retrieval_plot(image, label, similar_images, 'Image2Text')
@@ -306,7 +310,7 @@ class CLIPRetrievalIN:
         
         print(f"Original image label is '{label}'")
         print("\nTop similar items are:")
-        for i, (idx, sim, norm_score, eval_result, image, label) in enumerate(zip(
+        for i, (idx, sim, norm_score, eval_result, image, l) in enumerate(zip(
             similar_texts['indices'], 
             similar_texts['similarities'], 
             similar_texts['normalized_scores'],
@@ -314,7 +318,8 @@ class CLIPRetrievalIN:
             similar_texts['images'], 
             similar_texts['labels']
         )):
-            print(f"{i+1}. Image {idx} with normalized sim {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
+            l = int(l.item())
+            print(f"{i+1}. Image {idx} with normalized sim {norm_score:.2f}% - {eval_result}.\n   Label: {self.dataset.class_descriptions[l]}")
 
         # Create and save image-to-image plot
         # sample_label = ' '.join(l[0] for l in sample_label)

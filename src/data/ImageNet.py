@@ -89,7 +89,6 @@ class ImageNetDataset(Dataset):
         idx = idx % len(self.data)
         image, target = self.data[idx]                                               ## self.data[idx] returns a tuple (image, target)
         captions = self.generate_captions(target)
-        class_descriptions = self.class_descriptions[target]
 
         encoded_image = self.image_encoder(image.unsqueeze(0).to(self.device))
         encoded_image = encoded_image.squeeze(0)                                     ## Tensor shape (1, 2048) -> (2048)
@@ -97,7 +96,7 @@ class ImageNetDataset(Dataset):
         combined_caption = ". ".join(captions)
         encoded_captions = self.text_encoder(combined_caption).squeeze(0)           ## Tensor shape (1, 768) -> (768)
 
-        return encoded_image, encoded_captions, image, class_descriptions                       ## Shapes (2048), (768), Tensor (3, 224, 224), int
+        return encoded_image, encoded_captions, image, target                       ## Shapes (2048), (768), Tensor (3, 224, 224), int
     
     def __len__(self):
         # return self.batch_size * self.iterations_per_epoch if self.mode else len(self.data)

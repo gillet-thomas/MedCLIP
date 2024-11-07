@@ -21,7 +21,7 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     name = args[0] if len(args) > 0 else None
     wandb_mode = 'online' if config["wandb_enabled"] == 1 else 'disabled'
-    wandb.init(project="CLIP_MIMIC_CXR", mode=wandb_mode, config=config, name=name)
+    wandb.init(project="CLIP_IMAGENET", mode=wandb_mode, config=config, name=name)
 
     if config['training_enabled']:
         dataset_train = ImageNetDataset(config, mode="train")
@@ -33,6 +33,6 @@ if __name__ == "__main__":
         print("Training is disabled. Inference mode enabled.")
         dataset = ImageNetDataset(config, mode="val")
         model = CLIP(config).to(device)
-        model.load_state_dict(torch.load('./results/CLIP_ImageNet.pth', map_location=device, weights_only=True))
+        model.load_state_dict(torch.load('./results/CLIP_IMAGENET_1.pth', map_location=device, weights_only=True))
         retrieval = CLIPRetrievalIN(config, model, dataset)
         results = retrieval.retrieve_similar_content()

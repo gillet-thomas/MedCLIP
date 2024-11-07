@@ -21,8 +21,6 @@ class Trainer():
         print(f"Number of batches training: {len(self.dataloader)} of size {self.batch_size}")          ## 114 batches of size 64
         print(f"Number of batches validation: {len(self.val_dataloader)} of size {self.batch_size}")    ## 13 batches of size 64
 
-        # for name, param in self.model.named_parameters(): print(f"Trainable: {name}, Shape: {param.shape}") if param.requires_grad else None
-
     def run(self):
         for epoch in tqdm(range(self.epochs)):
             self.train(epoch)
@@ -41,9 +39,14 @@ class Trainer():
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=64)
 
+        item = next(iter(self.dataloader))
+        print(f"Check point 0: {item[0].shape} and {item[1].shape}, {item[2].shape}, {item[3].shape}")
+        
         for i, (sources, targets, _, _) in enumerate(self.dataloader):
             sources, targets = sources.to(self.device), targets.to(self.device)  ## (batch_size, 2048) and (batch_size, 768)
+            print(f"Check point 1: {sources.shape} and {targets.shape}")
             loss = self.model(sources, targets)
+            print(f"Check point 2: {loss}")
             
             optimizer.zero_grad()
             loss.backward()
