@@ -21,7 +21,7 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     name = args[0] if len(args) > 0 else None
     wandb_mode = 'online' if config["wandb_enabled"] == 1 else 'disabled'
-    wandb.init(project="CLIP_IMAGENET", mode=wandb_mode, config=config, name=name)
+    wandb.init(project="CLIP_MIMIC_CXR", mode=wandb_mode, config=config, name=name)
 
     if config['training_enabled']:
         dataset_train = ImageNetDataset(config, mode="train")

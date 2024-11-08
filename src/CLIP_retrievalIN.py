@@ -95,56 +95,22 @@ class CLIPRetrievalIN:
         """
         # Sample a subset of embeddings for visualization
         indices = torch.randperm(len(self.image_embeddings))[:sample_size]
-        
-        # Get the sampled embeddings
         image_features = self.image_embeddings[indices]         ## (batch_size, 256)
         text_features = self.text_embeddings[indices]           ## (batch_size, 256)
-        images = [self.images[i] for i in indices]
-        labels = [self.labels[i] for i in indices]
         
-        # Normalize features
+        # Normalize features and computes similarity
         image_features = F.normalize(image_features, dim=-1)
         text_features = F.normalize(text_features, dim=-1)
-        
-        # Project features to same dimension if needed
-        if image_features.shape[1] != text_features.shape[1]:
-            print("Features have different dimensions. Using projection...")
-            # Option 1: Project to smaller dimension
-            min_dim = min(image_features.shape[1], text_features.shape[1])
-            if image_features.shape[1] > min_dim:
-                projection_matrix = torch.randn(image_features.shape[1], min_dim).to(self.device)
-                projection_matrix = projection_matrix / projection_matrix.norm(dim=0, keepdim=True)
-                image_features = torch.matmul(image_features, projection_matrix)
-            if text_features.shape[1] > min_dim:
-                projection_matrix = torch.randn(text_features.shape[1], min_dim).to(self.device)
-                projection_matrix = projection_matrix / projection_matrix.norm(dim=0, keepdim=True)
-                text_features = torch.matmul(text_features, projection_matrix)
-        
-        # Calculate similarity matrix
         similarity = torch.matmul(text_features, image_features.T).cpu().numpy()
         
         # Create figure
         plt.figure(figsize=(20, 14))
-        
-        # Plot similarity matrix
         im = plt.imshow(similarity, vmin=similarity.min(), vmax=similarity.max(), cmap='viridis')
         plt.colorbar(im, label='Cosine Similarity')
         
-        # Add text labels
-        for i in range(similarity.shape[0]):
-            for j in range(similarity.shape[1]):
-                plt.text(j, i, f"{similarity[i, j]:.2f}", ha="center", va="center", color='white' if similarity[i, j] < similarity.mean() else 'black', size=10)
-        
-        # Add thumbnail images on x-axis
-        for i, image in enumerate(images):
-            image = self.load_and_resize_image(image)
-            plt.imshow(image, extent=(i - 0.5, i + 0.5, similarity.shape[0], similarity.shape[0] + 1), aspect='auto')
-        
-        # Customize axes
-        plt.yticks(range(len(labels)), labels, fontsize=12)
-        plt.xticks([])
-        
-        # Remove spines
+        # Add ticks and remove spines
+        plt.yticks(range(sample_size))
+        plt.xticks(range(sample_size))
         for side in ["left", "top", "right", "bottom"]:
             plt.gca().spines[side].set_visible(False)
         
@@ -257,7 +223,7 @@ class CLIPRetrievalIN:
     def retrieve_similar_content(self, k=5):
         image_tensor, text_tensor, image, label = self.dataset[18]
         label = self.dataset.class_descriptions[label]
-        # self.save_similarity_matrix(sample_size=100)
+        self.save_similarity_matrix(sample_size=100)
 
         print("\nImage-to-Image Baseline Statistics:")
         print(f"Average similarity: {self.image_stats['mean']:.3f}")
