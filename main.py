@@ -35,4 +35,5 @@ if __name__ == "__main__":
         model = CLIP(config).to(device)
         model.load_state_dict(torch.load('./results/CLIP_IMAGENET_1.pth', map_location=device, weights_only=True))
         retrieval = CLIPRetrievalIN(config, model, dataset)
-        results = retrieval.retrieve_similar_content()
+        # retrieval.retrieve_similar_content()
+        retrieval.save_similarity_matrix(sample_size=100)
