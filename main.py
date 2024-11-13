@@ -20,20 +20,20 @@ if __name__ == "__main__":
     # Initialize wandb
     args = sys.argv[1:]
     name = args[0] if len(args) > 0 else None
-    wandb_mode = 'online' if config["wandb_enabled"] == 1 else 'disabled'
+    wandb_mode = 'online' if config["wandb_enabled"] else 'disabled'
     wandb.init(project="CLIP_MIMIC_CXR", mode=wandb_mode, config=config, name=name)
 
     if config['training_enabled']:
-        dataset_train = ImageNetDataset(config, mode="train")
-        dataset_val = ImageNetDataset(config, mode="val")
+        dataset_train = Flickr8kDataset(config, mode="train")
+        dataset_val = Flickr8kDataset(config, mode="val")
         model = CLIP(config)
         trainer = Trainer(config, model, dataset_train, dataset_val)
         trainer.run()
     else:
         print("Training is disabled. Inference mode enabled.")
-        dataset = ImageNetDataset(config, mode="val")
+        dataset = Flickr8kDataset(config, mode="val")
         model = CLIP(config).to(device)
-        model.load_state_dict(torch.load('./results/CLIP_IMAGENET_1.pth', map_location=device, weights_only=True))
-        retrieval = CLIPRetrievalIN(config, model, dataset)
-        # retrieval.retrieve_similar_content()
+        model.load_state_dict(torch.load('./results/flickr95.pth', map_location=device, weights_only=True))
+        retrieval = CLIPRetrieval(config, model, dataset)
+        retrieval.retrieve_similar_content()
         retrieval.save_similarity_matrix(sample_size=100)

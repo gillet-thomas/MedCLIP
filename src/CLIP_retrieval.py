@@ -82,80 +82,69 @@ class CLIPRetrieval:
             }
         }
 
-
     def save_similarity_matrix(self, sample_size=10):
-        """
-        Create a visualization of cosine similarities between image and text embeddings,
-        handling different embedding dimensions
-        """
         # Sample a subset of embeddings for visualization
         indices = torch.randperm(len(self.image_embeddings))[:sample_size]
-        
-        # Get the sampled embeddings
         image_features = self.image_embeddings[indices]         ## (batch_size, 256)
         text_features = self.text_embeddings[indices]           ## (batch_size, 256)
-        sampled_labels = [self.labels[i] for i in indices]
-        sampled_paths = [self.image_paths[i] for i in indices]
         
-        # Normalize features
+        # Normalize features and compute similarity
         image_features = F.normalize(image_features, dim=-1)
         text_features = F.normalize(text_features, dim=-1)
-        
-        # Project features to same dimension if needed
-        if image_features.shape[1] != text_features.shape[1]:
-            print("Features have different dimensions. Using projection...")
-            # Option 1: Project to smaller dimension
-            min_dim = min(image_features.shape[1], text_features.shape[1])
-            if image_features.shape[1] > min_dim:
-                projection_matrix = torch.randn(image_features.shape[1], min_dim).to(self.device)
-                projection_matrix = projection_matrix / projection_matrix.norm(dim=0, keepdim=True)
-                image_features = torch.matmul(image_features, projection_matrix)
-            if text_features.shape[1] > min_dim:
-                projection_matrix = torch.randn(text_features.shape[1], min_dim).to(self.device)
-                projection_matrix = projection_matrix / projection_matrix.norm(dim=0, keepdim=True)
-                text_features = torch.matmul(text_features, projection_matrix)
-        
-        # Calculate similarity matrix
         similarity = torch.matmul(text_features, image_features.T).cpu().numpy()
         
         # Create figure
         plt.figure(figsize=(20, 14))
+        plt.title("Cosine Similarity between Text and Image Features", size=30, pad=20)
+        matrix = plt.imshow(similarity, vmin=similarity.min(), vmax=similarity.max(),cmap='viridis')
+        plt.colorbar(matrix, label='Cosine Similarity')
         
-        # Plot similarity matrix
-        im = plt.imshow(similarity, vmin=similarity.min(), vmax=similarity.max(), cmap='viridis')
-        plt.colorbar(im, label='Cosine Similarity')
-        
-        # Add text labels
-        for i in range(similarity.shape[0]):
-            for j in range(similarity.shape[1]):
-                plt.text(j, i, f"{similarity[i, j]:.2f}", 
-                        ha="center", va="center", 
-                        color='white' if similarity[i, j] < similarity.mean() else 'black',
-                        size=10)
-        
-        # Add thumbnail images on x-axis
-        for i, path in enumerate(sampled_paths):
-            img = self.load_and_resize_image(path, target_size=(64, 64))
-            plt.imshow(img, extent=(i - 0.5, i + 0.5, similarity.shape[0], similarity.shape[0] + 1), 
-                    aspect='auto')
-        
-        # Customize axes
-        plt.yticks(range(len(sampled_labels)), sampled_labels, fontsize=12)
-        plt.xticks([])
-        
-        # Remove spines
+        # Add ticks and remove spines
+        plt.yticks(range(sample_size))
+        plt.xticks(range(sample_size))
         for side in ["left", "top", "right", "bottom"]:
             plt.gca().spines[side].set_visible(False)
         
-        # Set plot limits and title
-        plt.xlim([-0.5, sample_size - 0.5])
-        plt.ylim([sample_size + 0.5, -1])
-        plt.title("Cosine Similarity between Text and Image Features", size=20, pad=40)
+        # Overlay red cells for row-wise maxima
+        row_max_mask = similarity == np.max(similarity, axis=1)[:, None]
+        for i in range(sample_size):
+            for j in range(sample_size):
+                if row_max_mask[i, j]:
+                    rect = plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=True, color='red', alpha=0.7)
+                    plt.gca().add_patch(rect)
         
         # Save plot
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filepath = os.path.join(self.output_dir, f'similarity_matrix_{timestamp}.png')
-        plt.tight_layout()
+        plt.savefig(filepath)
+        plt.close()
+
+    def save_similarity_matrix2(self, sample_size=10):
+        # Sample a subset of embeddings for visualization
+        indices = torch.randperm(len(self.image_embeddings))[:sample_size]
+        image_features = self.image_embeddings[indices]         ## (batch_size, 256)
+        text_features = self.text_embeddings[indices]           ## (batch_size, 256)
+        
+        # Normalize features and computes similarity
+        image_features = F.normalize(image_features, dim=-1)
+        text_features = F.normalize(text_features, dim=-1)
+        similarity = torch.matmul(text_features, image_features.T).cpu().numpy()
+        
+        # Create figure
+        plt.figure(figsize=(20, 14))
+        plt.title("Cosine Similarity between Text and Image Features", size=30, pad=20)
+        matrix = plt.imshow(similarity, vmin=similarity.min(), vmax=similarity.max(), cmap='viridis')
+        plt.colorbar(matrix, label='Cosine Similarity')
+        
+        # Add ticks and remove spines
+        plt.yticks(range(sample_size))
+        plt.xticks(range(sample_size))
+        for side in ["left", "top", "right", "bottom"]:
+            plt.gca().spines[side].set_visible(False)
+        
+        # Save plot
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filepath = os.path.join(self.output_dir, f'similarity_matrix_{timestamp}.png')
         plt.savefig(filepath)
         plt.close()
 
@@ -261,8 +250,7 @@ class CLIPRetrieval:
 
      
     def retrieve_similar_content(self, k=5):
-        image_tensor, text_tensor, sample_path, sample_label = self.dataset[18]
-        self.save_similarity_matrix(sample_size=100)
+        image_tensor, text_tensor, sample_path, sample_label = self.dataset[80]
 
         print("\nImage-to-Image Baseline Statistics:")
         print(f"Average similarity: {self.image_stats['mean']:.3f}")

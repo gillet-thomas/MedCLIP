@@ -10,17 +10,17 @@ from src.CLIP_model import ImageEncoder, TextEncoder
 from collections import defaultdict
 
 class Flickr8kDataset(Dataset):
-    def __init__(self, config, mode='train'):
+    def __init__(self, config, mode='train', transforms=None):
         self.mode = mode
         self.config = config
+        self.transforms = transforms
         self.device = config['device']
         self.batch_size = config['batch_size']
-        self.iterations_per_epoch = config['iterations_per_epoch']
+        # self.iterations_per_epoch = config['iterations_per_epoch']
         
         # Initialize encoders
-        self.image_encoder = ImageEncoder(config).to(self.device)
-        self.text_encoder = TextEncoder(config).to(self.device)
-        
+        self.image_encoder = ImageEncoder(config).to(self.device)   ## Used in get_data()
+        self.text_encoder = TextEncoder(config).to(self.device)     ## Used in get_data()
         self.image_encoder.eval()
         self.text_encoder.eval()
         
@@ -30,7 +30,7 @@ class Flickr8kDataset(Dataset):
             # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
             data = pickle.load(file)
             
-        self.train_data, self.val_data = torch.utils.data.random_split(data, [0.9, 0.1])
+        self.train_data, self.val_data = torch.utils.data.random_split(data, [0.95, 0.05])
         self.data = self.train_data if mode == 'train' else self.val_data
         print(f"Data initialized: {len(self.data)} {mode} samples")
     
@@ -80,7 +80,13 @@ class Flickr8kDataset(Dataset):
     
     def __getitem__(self, idx):
         idx = idx % len(self.data)
-        return self.data[idx][0], self.data[idx][1], self.data[idx][2], self.data[idx][3]  ## Shapes (2048), (768), str, list
+        image, encoded_caption, image_path, combined_caption = self.data[idx]   ## Shapes (2048), (768), str, list
+        # encoded_caption = self.text_encoder(" ".join(combined_caption)).squeeze(0)    ## If using data_raw.pickle
+
+        if self.transforms:
+            image = self.transforms(image)
+
+        return image, encoded_caption, image_path, combined_caption
     
     def __len__(self):
         # return self.batch_size * self.iterations_per_epoch if self.mode else len(self.data)

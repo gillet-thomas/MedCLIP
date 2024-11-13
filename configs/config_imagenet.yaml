@@ -2,14 +2,14 @@
 data_dir: '/mnt/data/iai/datasets/xray/mimic-cxr-2.0.0.physionet.org/files/'
 output_dir: './results'
 training_enabled: True
-wandb_enabled: True
+wandb_enabled: False
 
 # Training
 seed: 42
 learning_rate: 0.0002
 
-epochs: 50
-batch_size: 64
+epochs: 5
+batch_size: 1024
 weight_decay: 0.1
 iterations_per_epoch: 500
 val_interval: 20           ## Validation every 100 iterations
