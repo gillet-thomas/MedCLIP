@@ -217,25 +217,20 @@ class CLIPRetrieval:
         query_img = self.load_and_resize_image(query_image_path)
         axes[0].imshow(query_img)
         axes[0].axis('off')
-        axes[0].set_title('Query Image', fontsize=12)
-        wrapped_query_label = textwrap.fill(" ".join(query_label), width=50)        ## query_label is list of strings
+        axes[0].set_title('Query Image', fontsize=14)
+        wrapped_query_label = textwrap.fill(query_label, width=50)        ## query_label is list of strings
         axes[0].text(0.5, -0.15, wrapped_query_label, ha='center', va='top', transform=axes[0].transAxes, fontsize=10)
 
         # Plot retrieved images
-        for i, (idx, sim, norm_score, label) in enumerate(zip(
-            similar_results['indices'],
-            similar_results['similarities'],
+        for i, (norm_score, label, eval_result) in enumerate(zip(
             similar_results['normalized_scores'],
-            similar_results['labels']
+            similar_results['labels'],
+            similar_results['evaluations']
         )):
             retrieved_img = self.load_and_resize_image(similar_results['paths'][i])
             axes[i + 1].imshow(retrieved_img)
             axes[i + 1].axis('off')
-            
-            # Set similarity score above the image
-            axes[i + 1].set_title(f'Similarity: {norm_score:.2f}%', fontsize=14)
-
-            # Wrap the label text to ensure it doesn't exceed image width
+            axes[i + 1].set_title(f'Similarity: {norm_score:.2f}% \n {eval_result}', fontsize=14)
             wrapped_label = textwrap.fill(" ".join(label), width=50)
             axes[i + 1].text(0.5, -0.15, wrapped_label, ha='center', va='top', transform=axes[i + 1].transAxes, fontsize=10)
 
@@ -250,7 +245,7 @@ class CLIPRetrieval:
 
      
     def retrieve_similar_content(self, k=5):
-        image_tensor, text_tensor, sample_path, sample_label = self.dataset[80]
+        image_tensor, text_tensor, sample_path, sample_label = self.dataset[11]
 
         print("\nImage-to-Image Baseline Statistics:")
         print(f"Average similarity: {self.image_stats['mean']:.3f}")
@@ -270,18 +265,17 @@ class CLIPRetrieval:
         
         print(f"Original image label is '{sample_label}'")
         print("\nTop similar items are:")
-        for i, (idx, sim, norm_score, eval_result, path, label) in enumerate(zip(
+        for i, (idx, sim, norm_score, eval_result, label) in enumerate(zip(
             similar_images['indices'], 
             similar_images['similarities'], 
             similar_images['normalized_scores'],
             similar_images['evaluations'],
-            similar_images['paths'], 
             similar_images['labels']
         )):
-            print(f"{i+1}. Image {idx} with normalized sim {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
+            print(f"{i+1}. Image {idx} with normalized sim {sim:.2f} - {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
 
         # Create and save image-to-image plot
-        img2img_plot = self.create_retrieval_plot(sample_path, sample_label, similar_images, 'Image2Text')
+        img2img_plot = self.create_retrieval_plot(sample_path, sample_label, similar_images, 'Image2Image')
         print(f"Image-to-Text retrieval plot saved to: {img2img_plot}")
 
 
@@ -302,17 +296,16 @@ class CLIPRetrieval:
         
         print(f"Original image label is '{sample_label}'")
         print("\nTop similar items are:")
-        for i, (idx, sim, norm_score, eval_result, path, label) in enumerate(zip(
+        for i, (idx, sim, norm_score, eval_result, label) in enumerate(zip(
             similar_texts['indices'], 
             similar_texts['similarities'], 
             similar_texts['normalized_scores'],
             similar_texts['evaluations'],
-            similar_texts['paths'], 
             similar_texts['labels']
         )):
-            print(f"{i+1}. Image {idx} with normalized sim {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
+            print(f"{i+1}. Image {idx} with normalized sim {sim:.2f} - {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
 
         # Create and save image-to-image plot
         # sample_label = ' '.join(l[0] for l in sample_label)
-        text2img_plot = self.create_retrieval_plot(sample_path, sample_label, similar_texts, 'Text2Image')
+        text2img_plot = self.create_retrieval_plot(sample_path, sample_label, similar_texts, 'Text2Text')
         print(f"Text-to-Image retrieval plot saved to: {text2img_plot}")

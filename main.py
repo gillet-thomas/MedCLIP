@@ -33,7 +33,7 @@ if __name__ == "__main__":
         print("Training is disabled. Inference mode enabled.")
         dataset = Flickr8kDataset(config, mode="val")
         model = CLIP(config).to(device)
-        model.load_state_dict(torch.load('./results/flickr95.pth', map_location=device, weights_only=True))
+        model.load_state_dict(torch.load('./results/flickr90.pth', map_location=device, weights_only=True))
         retrieval = CLIPRetrieval(config, model, dataset)
         retrieval.retrieve_similar_content()
         retrieval.save_similarity_matrix(sample_size=100)
