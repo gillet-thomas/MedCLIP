@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import DistilBertTokenizer, DistilBertModel
 from transformers import ResNetConfig, ResNetModel
+import torchvision.models as models
 
 class CLIP(nn.Module):
     def __init__(self, config):
@@ -13,9 +14,6 @@ class CLIP(nn.Module):
         self.image_embedding = config["image_embedding"]
         self.text_embedding = config["text_embedding"]
         self.temperature = nn.Parameter(torch.ones([], device=self.device) * np.log(1 / 0.07))
-
-        self.image_encoder = ImageEncoder(config)
-        self.text_encoder = TextEncoder(config)
         self.image_projection = ProjectionHead(config, embedding_dim=self.image_embedding)
         self.text_projection = ProjectionHead(config, embedding_dim=self.text_embedding)
 
@@ -60,40 +58,26 @@ class ImageEncoder(nn.Module):
 class ImageEncoder2(nn.Module):
     def __init__(self, config):
         super().__init__()
+        # Create ResNet from scratch
+        self.model = models.resnet50(weights=None)
+        
+        # Remove original classification layer
+        # self.model.fc = nn.Identity()
+        
+        # Custom fine-tuning head
+        # self.fine_tuning_head = nn.Sequential(
+        #     nn.Linear(config["image_embedding"], config["image_embedding"]),
+        #     nn.ReLU(inplace=True),
+        #     nn.Dropout(0.2),
+        #     nn.Linear(config["image_embedding"], config["image_embedding"])
+        # )
 
-        # Configure the ResNet model and load pretrained weights
-        self.model = ResNetModel.from_pretrained("microsoft/resnet-50")
-
-        # Freeze the base model parameters ## no difference
-        # for i, param in enumerate(self.model.parameters()):
-        #         param.requires_grad = False
-
-        # Add a fine-tuning head
-        self.fine_tuning_head = nn.Sequential(
-            nn.Linear(config["image_embedding"], config["projection_dim"]),
-            nn.ReLU(),
-            nn.Linear(config["projection_dim"], config["projection_dim"])
-        )
-
-        # Initialize the fine-tuning head ## no difference
-        # for param in self.fine_tuning_head.parameters():
-        #     if isinstance(param, nn.Linear):
-        #         nn.init.xavier_normal_(param.weight)
-        #         nn.init.zeros_(param.bias)
+        self.model.fc = nn.Linear(2048, config["image_embedding"])
+        # nn.init.xavier_uniform_(self.model.fc.weight)
+        # nn.init.zeros_(self.model.fc.bias)
 
     def forward(self, x):
-        # Pass the input through the base ResNet model
-        output = self.model(x)
-        output = output.last_hidden_state
-
-        print(f"shape of output: {output.shape}")
-
-        # Pass the output through the fine-tuning head
-        output = self.fine_tuning_head(output)
-
-        print(f"shape of output after fine-tuning head: {output.shape}")
-
-        return output
+        return self.model(x)
     
 class TextEncoder(nn.Module):
     def __init__(self, config):
@@ -125,7 +109,7 @@ class ProjectionHead(nn.Module):
     def __init__(self, config, embedding_dim):
         super().__init__()
         
-        # Embedding dim is 2048 for image and 768 for text, projection_dim is 256
+        # Embedding dim is 2048 for image and 768 for text, projection_dim is 1024
         self.projection = nn.Linear(embedding_dim, config["projection_dim"])
         nn.init.xavier_normal_(self.projection.weight)
 

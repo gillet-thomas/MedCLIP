@@ -37,7 +37,7 @@ class Flickr8kDataset(Dataset):
         
         # Load and split data
         # data = self.get_data()
-        with open('./src/data/FLICKR_data_tf.pickle', 'rb') as file:
+        with open('./src/data/FLICKR_data.pickle', 'rb') as file:
             # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
             data = pickle.load(file)
 

@@ -7,7 +7,7 @@ wandb_enabled: 1
 seed: 42
 learning_rate: 0.0001
 epochs: 50
-batch_size: 64
+batch_size: 64             # Test with 32
 weight_decay: 0.1
 val_interval: 20           ## Validation every 100 iterations
 

@@ -119,36 +119,6 @@ class CLIPRetrieval:
         plt.savefig(filepath)
         plt.close()
 
-    def save_similarity_matrix2(self, sample_size=10):
-        # Sample a subset of embeddings for visualization
-        indices = torch.randperm(len(self.image_embeddings))[:sample_size]
-        image_features = self.image_embeddings[indices]         ## (batch_size, 256)
-        text_features = self.text_embeddings[indices]           ## (batch_size, 256)
-        
-        # Normalize features and computes similarity
-        image_features = F.normalize(image_features, dim=-1)
-        text_features = F.normalize(text_features, dim=-1)
-        similarity = torch.matmul(text_features, image_features.T).cpu().numpy()
-        
-        # Create figure
-        plt.figure(figsize=(20, 14))
-        plt.title("Cosine Similarity between Text and Image Features", size=30, pad=20)
-        matrix = plt.imshow(similarity, vmin=similarity.min(), vmax=similarity.max(), cmap='viridis')
-        plt.colorbar(matrix, label='Cosine Similarity')
-        
-        # Add ticks and remove spines
-        plt.yticks(range(sample_size))
-        plt.xticks(range(sample_size))
-        for side in ["left", "top", "right", "bottom"]:
-            plt.gca().spines[side].set_visible(False)
-        
-        # Save plot
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filepath = os.path.join(self.output_dir, f'similarity_matrix_{timestamp}.png')
-        plt.savefig(filepath)
-        plt.close()
-
-
     def find_similar(self, query, embeddings, modality, k=5):
         with torch.no_grad():
             
@@ -279,6 +249,39 @@ class CLIPRetrieval:
         print(f"Image-to-Text retrieval plot saved to: {img2img_plot}")
 
 
+        print("\n-----------TEXT-TO-IMAGE RETRIEVAL-----------")
+        # sample_label = "a boy jumps into the pool"                 ## Free text query
+        # sample_label = [('A group of people are backpacking through a grassy field .',), ('A group of people walk in a line through a field next to a forest .',), ('A group of people walking through a grassy field .',), ('People on a nature walk with nets and backpacks with trees to the left of them .',), ('Several people in line walking through grass with nets in hand .',)]
+        # encoded_captions = []
+        # for caption in sample_label:
+        #     encoded_caption = self.dataset.text_encoder(caption)
+        #     encoded_captions.append(encoded_caption.squeeze(0))
+        # encoded_captions = torch.stack(encoded_captions)
+        
+        # text_tensor = self.dataset.text_encoder(sample_label).unsqueeze(0)   ## Free text query
+        query_embedding = text_tensor.to(self.device)
+        query_embedding = self.model.text_projection(query_embedding)           ## Shape [1024]
+        query_embedding = F.normalize(query_embedding, dim=-1)
+        similar_texts = self.find_similar(query_embedding, self.text_embeddings, modality='text', k=k)
+        
+        print(f"Original image label is '{sample_label}'")
+        print("\nTop similar items are:")
+        for i, (idx, sim, norm_score, eval_result, label) in enumerate(zip(
+            similar_texts['indices'], 
+            similar_texts['similarities'], 
+            similar_texts['normalized_scores'],
+            similar_texts['evaluations'],
+            similar_texts['labels']
+        )):
+            print(f"{i+1}. Image {idx} with normalized sim {sim:.2f} - {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
+
+        # Create and save image-to-image plot
+        # sample_label = ' '.join(l[0] for l in sample_label)
+        text2img_plot = self.create_retrieval_plot(sample_path, sample_label, similar_texts, 'Text2Text')
+        print(f"Text-to-Image retrieval plot saved to: {text2img_plot}")
+
+
+    def free_query_retrieval(self, query, k=5):
         print("\n-----------TEXT-TO-IMAGE RETRIEVAL-----------")
         # sample_label = "a boy jumps into the pool"                 ## Free text query
         # sample_label = [('A group of people are backpacking through a grassy field .',), ('A group of people walk in a line through a field next to a forest .',), ('A group of people walking through a grassy field .',), ('People on a nature walk with nets and backpacks with trees to the left of them .',), ('Several people in line walking through grass with nets in hand .',)]
