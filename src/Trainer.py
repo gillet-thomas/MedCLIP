@@ -22,8 +22,6 @@ class Trainer():
         print(f"Number of batches validation: {len(self.val_dataloader)} of size {self.batch_size}")    ## 13 batches of size 64
         # print([name for name, param in self.model.named_parameters() if param.requires_grad])
 
-
-
     def run(self):
         for epoch in tqdm(range(self.epochs)):
             self.train(epoch)
@@ -68,7 +66,8 @@ class Trainer():
                 sources, targets = sources.to(self.device), targets.to(self.device)  ## (batch_size, 2048) and (batch_size, 768)
                 loss = self.model(sources, targets)
                 val_loss += loss.item()
+                # print(f"Epoch {epoch}, Batch {i}: validation loss {loss.item()}, average loss {val_loss/(i+1)}")
             
             avg_val_loss = val_loss / len(self.val_dataloader)
-            print(f"VALIDATION - Epoch {epoch}, Total batch {i}: validation loss {avg_val_loss}")
+            print(f"VALIDATION - Epoch {epoch}, Total batch {i}, avg validation loss {avg_val_loss}")
             wandb.log({"epoch": epoch, "val loss": avg_val_loss})

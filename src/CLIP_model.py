@@ -50,9 +50,9 @@ class ImageEncoder(nn.Module):
         super().__init__()
 
         # Load model + Freeze all base model parameters
-        self.model = timm.create_model(config["image_encoder"], pretrained=False, num_classes=0)
-        for param in self.model.parameters():
-            param.requires_grad = True
+        self.model = timm.create_model(config["image_encoder"], pretrained=True, num_classes=0)
+        # for param in self.model.parameters():
+        #     param.requires_grad = True
 
     def forward(self, x):
         return self.model(x)
@@ -115,8 +115,7 @@ class TextEncoder(nn.Module):
         
         output = self.model(input_ids=input_ids, attention_mask=attention_mask)
         return output.last_hidden_state[:, self.target_token_idx, :]       ## Output is shape (batch_size, hidden_size)
-
-    
+   
 class ProjectionHead(nn.Module):
     def __init__(self, config, embedding_dim):
         super().__init__()

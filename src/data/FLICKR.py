@@ -26,11 +26,11 @@ class Flickr8kDataset(Dataset):
         
         # Load and split data
         # data = self.get_data()
-        with open('./src/data/FLICKR_data.pickle', 'rb') as file:
+        with open('./src/data/FLICKR_data_old.pickle', 'rb') as file:
             # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
             data = pickle.load(file)
-            
-        self.train_data, self.val_data = torch.utils.data.random_split(data, [0.95, 0.05])
+
+        self.train_data, self.val_data = torch.utils.data.random_split(data, [0.80, 0.20])
         self.data = self.train_data if mode == 'train' else self.val_data
         print(f"Data initialized: {len(self.data)} {mode} samples")
     
@@ -43,7 +43,8 @@ class Flickr8kDataset(Dataset):
         image_captions = defaultdict(list)
         for _, row in df.iterrows():
             image_captions[row['image']].append(row['caption'].strip())
-
+        
+        # Encode images and captions
         encoded_data_pairs = []
         images_path = os.path.join('src', 'data', 'Images')
         for image_name, captions in tqdm(image_captions.items()):
@@ -76,15 +77,16 @@ class Flickr8kDataset(Dataset):
         image = torch.tensor(image).to(self.device)
         image = image.permute(2, 0, 1).float().unsqueeze(0)  # Shape: (1, 3, 224, 224) for ResNet encoder
         
+        # if self.transforms:
+        #     image = image.squeeze(0).cpu()
+        #     image = self.transforms(image)
+        #     image = image.unsqueeze(0).to(self.device)
+
         return image
     
     def __getitem__(self, idx):
         idx = idx % len(self.data)
         image, encoded_caption, image_path, combined_caption = self.data[idx]   ## Shapes (2048), (768), str, list
-        # encoded_caption = self.text_encoder(" ".join(combined_caption)).squeeze(0)    ## If using data_raw.pickle
-
-        if self.transforms:
-            image = self.transforms(image)
 
         return image, encoded_caption, image_path, combined_caption
     
