@@ -1,17 +1,15 @@
 # Global
-data_dir: '/mnt/data/iai/datasets/xray/mimic-cxr-2.0.0.physionet.org/files/'
 output_dir: './results'
 training_enabled: 1
 wandb_enabled: 1
+
 # Training
 seed: 42
 learning_rate: 0.0001
-
 epochs: 50
 batch_size: 64
 weight_decay: 0.1
 val_interval: 20           ## Validation every 100 iterations
-iterations_per_epoch: 500
 
 # CLIP model
 projection_dim: 1024

@@ -8,16 +8,27 @@ from tqdm import tqdm
 from torch.utils.data import Dataset
 from src.CLIP_model import ImageEncoder, TextEncoder, ImageEncoder2
 from collections import defaultdict
+from torchvision.transforms import v2
+
 
 class Flickr8kDataset(Dataset):
-    def __init__(self, config, mode='train', transforms=None):
+    def __init__(self, config, mode='train'):
         self.mode = mode
         self.config = config
-        self.transforms = transforms
         self.device = config['device']
         self.batch_size = config['batch_size']
         # self.iterations_per_epoch = config['iterations_per_epoch']
         
+        # Define data augmentations
+        self.augmentations = v2.Compose([
+            v2.RandomResizedCrop(size=(224, 224)),  # Random cropping
+            v2.RandomHorizontalFlip(p=0.5),  # Random horizontal flip
+            v2.RandomRotation(degrees=(-30, 30)),
+            v2.RandomAffine(degrees=(-30, 30), translate=(0.1, 0.1), scale=(0.8, 1.2), shear=15),
+            v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # Random color jitter
+            v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize to ResNet input standards
+        ])
+
         # Initialize encoders
         self.image_encoder = ImageEncoder(config).to(self.device)   ## Used in get_data()
         self.text_encoder = TextEncoder(config).to(self.device)     ## Used in get_data()
@@ -25,8 +36,8 @@ class Flickr8kDataset(Dataset):
         self.text_encoder.eval()
         
         # Load and split data
-        data = self.get_data()
-        with open('./src/data/FLICKR_data_old.pickle', 'rb') as file:
+        # data = self.get_data()
+        with open('./src/data/FLICKR_data_tf.pickle', 'rb') as file:
             # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
             data = pickle.load(file)
 
@@ -77,9 +88,9 @@ class Flickr8kDataset(Dataset):
         image = torch.tensor(image).to(self.device)
         image = image.permute(2, 0, 1).float().unsqueeze(0)  # Shape: (1, 3, 224, 224) for ResNet encoder
         
-        # if self.transforms:
+        # if self.augmentations:
         #     image = image.squeeze(0).cpu()
-        #     image = self.transforms(image)
+        #     image = self.augmentations(image)
         #     image = image.unsqueeze(0).to(self.device)
 
         return image
