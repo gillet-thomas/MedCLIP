@@ -6,7 +6,7 @@ from PIL import Image
 import pickle
 from tqdm import tqdm
 from torch.utils.data import Dataset
-from src.CLIP_model import ImageEncoder, TextEncoder
+from src.CLIP_model import ImageEncoder, TextEncoder, ImageEncoder2
 from collections import defaultdict
 
 class Flickr8kDataset(Dataset):
@@ -25,7 +25,7 @@ class Flickr8kDataset(Dataset):
         self.text_encoder.eval()
         
         # Load and split data
-        # data = self.get_data()
+        data = self.get_data()
         with open('./src/data/FLICKR_data_old.pickle', 'rb') as file:
             # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
             data = pickle.load(file)

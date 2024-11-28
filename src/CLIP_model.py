@@ -14,7 +14,7 @@ class CLIP(nn.Module):
         self.text_embedding = config["text_embedding"]
         self.temperature = nn.Parameter(torch.ones([], device=self.device) * np.log(1 / 0.07))
 
-        self.image_encoder = ImageEncoder2(config)
+        self.image_encoder = ImageEncoder(config)
         self.text_encoder = TextEncoder(config)
         self.image_projection = ProjectionHead(config, embedding_dim=self.image_embedding)
         self.text_projection = ProjectionHead(config, embedding_dim=self.text_embedding)
@@ -84,9 +84,14 @@ class ImageEncoder2(nn.Module):
     def forward(self, x):
         # Pass the input through the base ResNet model
         output = self.model(x)
+        output = output.last_hidden_state
+
+        print(f"shape of output: {output.shape}")
 
         # Pass the output through the fine-tuning head
-        output = self.fine_tuning_head(output.pooler_output)
+        output = self.fine_tuning_head(output)
+
+        print(f"shape of output after fine-tuning head: {output.shape}")
 
         return output
     
