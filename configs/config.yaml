@@ -1,7 +1,7 @@
 # Global
 output_dir: './results'
-training_enabled: 1
-wandb_enabled: 1
+training_enabled: 0
+wandb_enabled: 0
 
 # Training
 seed: 42

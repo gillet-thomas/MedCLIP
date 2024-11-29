@@ -17,7 +17,6 @@ class Flickr8kDataset(Dataset):
         self.config = config
         self.device = config['device']
         self.batch_size = config['batch_size']
-        # self.iterations_per_epoch = config['iterations_per_epoch']
         
         # Define data augmentations
         self.augmentations = v2.Compose([
