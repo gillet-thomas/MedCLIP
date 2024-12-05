@@ -1,15 +1,14 @@
 import os
 import cv2
 import torch
-import pandas as pd
-from PIL import Image
 import pickle
-from tqdm import tqdm
-from torch.utils.data import Dataset
-from src.CLIP_model import ImageEncoder, TextEncoder, ImageEncoder2
-from collections import defaultdict
-from torchvision.transforms import v2
+import pandas as pd
 
+from tqdm import tqdm
+from collections import defaultdict
+from torch.utils.data import Dataset
+from torchvision.transforms import v2
+from src.CLIP_model import ImageEncoder, TextEncoder, TextSummarizer
 
 class Flickr8kDataset(Dataset):
     def __init__(self, config, mode='train'):
@@ -24,19 +23,20 @@ class Flickr8kDataset(Dataset):
             v2.RandomHorizontalFlip(p=0.5),  # Random horizontal flip
             v2.RandomRotation(degrees=(-30, 30)),
             v2.RandomAffine(degrees=(-30, 30), translate=(0.1, 0.1), scale=(0.8, 1.2), shear=15),
-            v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # Random color jitter
+            # v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # Random color jitter
             v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize to ResNet input standards
         ])
 
         # Initialize encoders
         self.image_encoder = ImageEncoder(config).to(self.device)   ## Used in get_data()
         self.text_encoder = TextEncoder(config).to(self.device)     ## Used in get_data()
+        self.text_summarizer = TextSummarizer()
         self.image_encoder.eval()
         self.text_encoder.eval()
         
         # Load and split data
         # data = self.get_data()
-        with open('./src/data/FLICKR_data.pickle', 'rb') as file:
+        with open('./src/data/CLIP_FLICKR_summary_qwen.pickle', 'rb') as file:
             # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
             data = pickle.load(file)
 
@@ -71,6 +71,7 @@ class Flickr8kDataset(Dataset):
                 
                 # Encode all captions for this image
                 combined_caption = " ".join(captions)
+                combined_caption = self.text_summarizer(combined_caption)
                 encoded_captions = self.text_encoder(combined_caption)            ## Tensor shape (1, 768) -> (768)
 
             # Store tensors on CPU to save GPU memory

@@ -1,13 +1,12 @@
 import os
 import cv2
+import torch
 import textwrap
 import numpy as np
-from tqdm import tqdm
-from datetime import datetime
-
-import torch
-import torch.nn.functional as F
 import matplotlib.pyplot as plt
+
+import torch.nn.functional as F
+from datetime import datetime
 from torch.utils.data import DataLoader
 
 class CLIPRetrieval:
@@ -251,15 +250,6 @@ class CLIPRetrieval:
 
 
         print("\n-----------TEXT-TO-IMAGE RETRIEVAL-----------")
-        # sample_label = "a boy jumps into the pool"                 ## Free text query
-        # sample_label = [('A group of people are backpacking through a grassy field .',), ('A group of people walk in a line through a field next to a forest .',), ('A group of people walking through a grassy field .',), ('People on a nature walk with nets and backpacks with trees to the left of them .',), ('Several people in line walking through grass with nets in hand .',)]
-        # encoded_captions = []
-        # for caption in sample_label:
-        #     encoded_caption = self.dataset.text_encoder(caption)
-        #     encoded_captions.append(encoded_caption.squeeze(0))
-        # encoded_captions = torch.stack(encoded_captions)
-        
-        # text_tensor = self.dataset.text_encoder(sample_label).unsqueeze(0)   ## Free text query
         query_embedding = text_tensor.to(self.device)
         query_embedding = self.model.text_projection(query_embedding)           ## Shape [1024]
         query_embedding = F.normalize(query_embedding, dim=-1)
@@ -277,7 +267,6 @@ class CLIPRetrieval:
             print(f"{i+1}. Image {idx} with normalized sim {sim:.2f} - {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
 
         # Create and save image-to-image plot
-        # sample_label = ' '.join(l[0] for l in sample_label)
         text2img_plot = self.create_retrieval_plot(sample_path, sample_label, similar_texts, 'Text2Text')
         print(f"Text-to-Image retrieval plot saved to: {text2img_plot}")
 
@@ -285,19 +274,24 @@ class CLIPRetrieval:
     def free_query_retrieval(self, k=5):
         print("\n-----------TEXT-TO-IMAGE RETRIEVAL-----------")
 
-        _, encoded_label, sample_path, sample_label = self.dataset[11]
-        # sample_label = two black and white dogs running in a flowery field Two dogs change direction in an uncut field surrounded by low brush .'
-        sample_label = 'scaling rock night'
-        encoded_sample_label = self.dataset.text_encoder(sample_label).squeeze().cpu()          ## Tensor shape (1, 768) -> (768)
+        _, encoded_label, sample_path, sample_label = self.dataset[8]
+        # query_label = 'A man climbing a rock . A man is rock climbing at sunset . A man is scaling a large boulder at dusk . a man scales the large rock . Climber scaling rock at night .'
+        # query_label = 'two dogs run in a field looking at an unsee frisbee .'
+        query_label = 'A man playing guitar on stage .'
+        # query_label = 'A guitar player is playing a song on the stage . A concert is happening on the stage . Guitar player is playing a song on the stage . A guitarist plays the guitar . A concert with big crowd and a guitar on stage .'
+        # query_label = self.dataset.text_summarizer(query_label, num_sentences=1)
 
-        print(f"Are encoded labels equal: {torch.all(encoded_sample_label == encoded_label)}")   # YES
+        encoded_sample_label = self.dataset.text_encoder(query_label).squeeze().cpu()          ## Tensor shape (1, 768) -> (768)
 
         query_embedding = encoded_sample_label.to(self.device)
         query_embedding = self.model.text_projection(query_embedding)           ## Shape [1024]
         query_embedding = F.normalize(query_embedding, dim=-1)
         similar_texts = self.find_similar(query_embedding, self.text_embeddings, modality='text', k=k)
+        # print(f"Are encoded labels equal: {torch.all(encoded_sample_label == encoded_label)}")   # YES
         
         print(f"Original image label is '{sample_label}'")
+        print(f"Query label is '{query_label}'")
+        # print(F"Summary of the label is: {summary}")
         # print("\nTop similar items are:")
         # for i, (idx, sim, norm_score, eval_result, label) in enumerate(zip(
         #     similar_texts['indices'], 
@@ -309,5 +303,5 @@ class CLIPRetrieval:
         #     print(f"{i+1}. Image {idx} with normalized sim {sim:.2f} - {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
 
         # Create and save image-to-image plot
-        text2img_plot = self.create_retrieval_plot(sample_path, sample_label, similar_texts, 'FREEQUERY1_5_5')
+        text2img_plot = self.create_retrieval_plot(sample_path, query_label, similar_texts, 'FREEQUERY5_guitar_summary_qwen')
         print(f"Text-to-Image retrieval plot saved to: {text2img_plot}")

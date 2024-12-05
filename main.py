@@ -6,8 +6,8 @@ import torch
 from src.Trainer import Trainer
 from src.CLIP_model import CLIP
 from src.CLIP_retrieval import CLIPRetrieval
-from src.CLIP_retrievalIN import CLIPRetrievalIN
 from src.data.FLICKR import Flickr8kDataset
+from src.CLIP_retrievalIN import CLIPRetrievalIN
 from src.data.ImageNet import ImageNetDataset
 
 if __name__ == "__main__":
@@ -29,17 +29,13 @@ if __name__ == "__main__":
         model = CLIP(config)
         trainer = Trainer(config, model, dataset_train, dataset_val)
         trainer.run()
-
-        # model.load_state_dict(torch.load('./results/model.pth', map_location=device, weights_only=True))
-        # retrieval = CLIPRetrieval(config, model, dataset_val)
-        # retrieval.retrieve_similar_content()
-        # retrieval.save_similarity_matrix(sample_size=100)
     else:
         print("Training is disabled. Inference mode enabled.")
         dataset = Flickr8kDataset(config, mode="val")
         model = CLIP(config).to(device)
-        model.load_state_dict(torch.load('./results/CLIP_FLICKR_BASE.pth', map_location=device, weights_only=True))
+        model.load_state_dict(torch.load('./results/CLIP_FLICKR_summary_qwen.pth', map_location=device, weights_only=True))
         retrieval = CLIPRetrieval(config, model, dataset)
+        
         # retrieval.retrieve_similar_content()
         # retrieval.save_similarity_matrix(sample_size=100)
         retrieval.free_query_retrieval()

@@ -27,8 +27,8 @@ class Trainer():
             self.train(epoch)
             self.validate(epoch)
 
-        torch.save(self.model.state_dict(), './results/model.pth')
-        print("Model saved to ./results/model.pth")
+        torch.save(self.model.state_dict(), './results/FLICKR_summary_qwen.pth')
+        print("Model saved to ./results/FLICKR_summary_qwen.pth")
 
     def train(self, epoch):
         self.model.train()
