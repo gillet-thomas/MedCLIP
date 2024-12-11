@@ -277,7 +277,7 @@ class CLIPRetrieval:
         _, encoded_label, sample_path, sample_label = self.dataset[8]
         # query_label = 'A man climbing a rock . A man is rock climbing at sunset . A man is scaling a large boulder at dusk . a man scales the large rock . Climber scaling rock at night .'
         # query_label = 'two dogs run in a field looking at an unsee frisbee .'
-        query_label = 'A man playing guitar on stage .'
+        query_label = 'A man playing guitar on stage OR in a field OR outside.'
         # query_label = 'A guitar player is playing a song on the stage . A concert is happening on the stage . Guitar player is playing a song on the stage . A guitarist plays the guitar . A concert with big crowd and a guitar on stage .'
         # query_label = self.dataset.text_summarizer(query_label, num_sentences=1)
 
@@ -303,5 +303,5 @@ class CLIPRetrieval:
         #     print(f"{i+1}. Image {idx} with normalized sim {sim:.2f} - {norm_score:.2f}% - {eval_result}.\n   Label: {label}")
 
         # Create and save image-to-image plot
-        text2img_plot = self.create_retrieval_plot(sample_path, query_label, similar_texts, 'FREEQUERY5_guitar_summary_qwen')
+        text2img_plot = self.create_retrieval_plot(sample_path, query_label, similar_texts, 'FREEQUERY92')
         print(f"Text-to-Image retrieval plot saved to: {text2img_plot}")

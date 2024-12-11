@@ -36,9 +36,12 @@ class Flickr8kDataset(Dataset):
         
         # Load and split data
         # data = self.get_data()
-        with open('./src/data/CLIP_FLICKR_summary_qwen.pickle', 'rb') as file:
+        with open('./src/data/CLIP_FLICKR_base.pickle', 'rb') as file:
             # pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
             data = pickle.load(file)
+
+        # Take only 20% of data
+        # data = data[:int(0.20*len(data))]
 
         self.train_data, self.val_data = torch.utils.data.random_split(data, [0.80, 0.20])
         self.data = self.train_data if mode == 'train' else self.val_data
