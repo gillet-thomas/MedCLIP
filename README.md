@@ -1,1 +1,1 @@
-(Biomed)CLIP implementation from scratch using MIMIC-CXR dataset
+Branch flickr = implementation tailored for general Flickr8k dataset.
