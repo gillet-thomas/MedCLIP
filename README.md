@@ -1,1 +1,1 @@
-(Biomed)CLIP implementation from scratch using MIMIC-CXR dataset
+Branch abcde = implementation for small in-house ABCDE dataset (64 samples) composed of fmris, mris, and behavioral data.

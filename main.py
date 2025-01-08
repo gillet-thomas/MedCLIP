@@ -6,9 +6,7 @@ import torch
 from src.Trainer import Trainer
 from src.CLIP_model import CLIP
 from src.CLIP_retrieval import CLIPRetrieval
-from src.data.FLICKR import Flickr8kDataset
-from src.CLIP_retrievalIN import CLIPRetrievalIN
-from src.data.ImageNet import ImageNetDataset
+from src.data.ABCDE import ABCDEDataset
 
 if __name__ == "__main__":
     device = 'cuda:2' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available else 'cpu'
@@ -24,14 +22,14 @@ if __name__ == "__main__":
     wandb.init(project="CLIP_MIMIC_CXR", mode=wandb_mode, config=config, name=name)
 
     if config['training_enabled']:
-        dataset_train = Flickr8kDataset(config, mode="train")
-        dataset_val = Flickr8kDataset(config, mode="val")
-        model = CLIP(config)
-        trainer = Trainer(config, model, dataset_train, dataset_val)
-        trainer.run()
+        dataset_train = ABCDEDataset(config, mode="train")
+        # dataset_val = Flickr8kDataset(config, mode="val")
+        # model = CLIP(config)
+        # trainer = Trainer(config, model, dataset_train, dataset_val)
+        # trainer.run()
     else:
         print("Training is disabled. Inference mode enabled.")
-        dataset = Flickr8kDataset(config, mode="val")
+        dataset = ABCDEDataset(config, mode="val")
         model = CLIP(config).to(device)
         model.load_state_dict(torch.load('./results/CLIP_FLICKR_summary_qwen.pth', map_location=device, weights_only=True))
         retrieval = CLIPRetrieval(config, model, dataset)
