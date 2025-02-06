@@ -1,26 +1,11 @@
-import os
-import cv2
 import torch
-import pickle
-import pandas as pd
-from glob import glob
-
-from tqdm import tqdm
-from collections import defaultdict
-from torch.utils.data import Dataset
-from torchvision.transforms import v2
-
-import warnings
-import numpy as np
-from glob import glob
-from matplotlib import pyplot as plt
-from nilearn.image import resample_img, load_img, concat_imgs
-
-import timm
-import torch
-import numpy as np
 import torch.nn as nn
-import torch.nn.functional as F
+import pandas as pd
+
+from glob import glob
+from tqdm import tqdm
+from nilearn.image import load_img
+from torch.utils.data import Dataset
 
 class ABCDEDataset(Dataset):
     def __init__(self, config, mode='train'):

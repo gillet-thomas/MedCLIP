@@ -7,6 +7,7 @@ from src.Trainer import Trainer
 from src.CLIP_model import CLIP
 from src.CLIP_retrieval import CLIPRetrieval
 from src.data.ABCDE import ABCDEDataset
+from src.data.ABCDETime import ABCDETimeDataset
 
 if __name__ == "__main__":
     device = 'cuda:2' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available else 'cpu'
@@ -22,8 +23,8 @@ if __name__ == "__main__":
     wandb.init(project="CLIP_MIMIC_CXR", mode=wandb_mode, config=config, name=name)
 
     if config['training_enabled']:
-        dataset_train = ABCDEDataset(config, mode="train")
-        # dataset_val = Flickr8kDataset(config, mode="val")
+        dataset_train = ABCDETimeDataset(config, mode="train")
+        # dataset_val = ABCDEDataset(config, mode="val")
         # model = CLIP(config)
         # trainer = Trainer(config, model, dataset_train, dataset_val)
         # trainer.run()
